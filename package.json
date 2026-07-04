@@ -1,0 +1,31 @@
+{
+  "name": "@tequity/tequity-infra",
+  "version": "0.1.0",
+  "description": "Tequity infrastructure — Pulumi (k8s cluster deps, per-project Vault, observability stack, policy-as-code).",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "jest",
+    "preview": "pulumi preview",
+    "up": "pulumi up"
+  },
+  "dependencies": {
+    "@pulumi/kubernetes": "^4.18.0",
+    "@pulumi/pulumi": "^3.140.0"
+  },
+  "optionalDependencies": {
+    "@pulumi/gcp": "^8.10.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

@@ -1,0 +1,4 @@
+config:
+  tequity-infra:environment: dev
+  tequity-infra:kubeContext: kind-tequity
+  tequity-infra:appNamespace: tequity

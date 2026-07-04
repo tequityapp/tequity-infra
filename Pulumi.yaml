@@ -1,0 +1,9 @@
+name: tequity-infra
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: >-
+  Tequity in-cluster platform: policy-as-code, required dependencies, the
+  observability stack, and secret sync. Cloud-agnostic — targets whatever kube
+  context is configured; cluster creation is an opt-in provider module.
