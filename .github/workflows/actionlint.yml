@@ -1,0 +1,36 @@
+name: actionlint
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yaml'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/actionlint.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: 1.7.7
+      # From actionlint_1.7.7_checksums.txt on the upstream GitHub Release.
+      ACTIONLINT_SHA256: '023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint (pinned release binary)
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          curl -fsSL "$url" -o "$archive"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" actionlint
+          ./actionlint --version
+      - name: Run actionlint over all workflows
+        run: ./actionlint -color
