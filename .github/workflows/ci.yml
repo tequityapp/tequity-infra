@@ -3,16 +3,27 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request:
+  # Use the trusted base-branch workflow definition. Forks are rejected before
+  # runner assignment; admitted same-repository PRs are checked out explicitly
+  # by immutable head SHA with credentials disabled.
+  pull_request_target:
+
+permissions:
+  contents: read
 
 jobs:
   pulumi:
-    uses: Verjson/.github/.github/workflows/pulumi-ci.yml@main
-    with:
-      stacks: '["dev"]'
-      validate-command: |
-        npm run build
-        npm test
-      runner: '["ubuntu-latest"]'
-    secrets:
-      node-auth-token: ${{ secrets.NODE_AUTH_TOKEN || secrets.SUBMODULES_TOKEN || github.token }}
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, ci]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test

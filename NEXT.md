@@ -4,6 +4,28 @@ Running log of what landed and what's next in the platform infra (Pulumi TS: PG/
 observability stack, External Secrets). Newest entry first. The umbrella `tequity-platform/NEXT.md`
 holds the cross-repo platform narrative; this file is infra-scoped.
 
+## 2026-07-27 — Route validation to the labeled self-hosted CI pool
+
+The actionlint and Pulumi validation jobs now target the portable `[self-hosted, ci]` pool adopted
+by ADR-0039. Both use trusted-base `pull_request_target` definitions, reject forks before runner
+assignment, check out an admitted same-repository PR by immutable head SHA, and disable checkout
+credential persistence. Validation has explicit `contents: read` permissions and supplies no
+private package or cloud credential. The committed lockfile makes `npm ci` deterministic and
+runnable. Actionlint recognizes both approved organization runner labels.
+
+Runner host provisioning is not present in this repository today. Infra issue
+[infra#6](https://github.com/tequityapp/tequity-infra/issues/6) owns a versioned, attested baseline
+that installs the missing GitHub CLI, Docker Compose v2 plugin, and PowerShell 7 without changing
+live hosts in this migration. The former reusable Pulumi workflow could not disable its
+credential-persisting checkout or separate validation from broader permissions, so its upstream
+hardening is handed to
+[Verjson/.github#151](https://github.com/Verjson/.github/issues/151). The lockfile's currently
+unavoidable high-severity transitive audit findings are tracked in
+[infra#7](https://github.com/tequityapp/tequity-infra/issues/7).
+
+Refs: [tequity-platform#62](https://github.com/tequityapp/tequity-platform/issues/62),
+[ADR-0039](https://github.com/tequityapp/tequity-docs/pull/28).
+
 ## 2026-07-21 — CI: adopt Verjson/.github pulumi-ci reusable + actionlint
 
 `ci.yml` now calls `Verjson/.github/.github/workflows/pulumi-ci.yml@main` with a credential-free
