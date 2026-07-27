@@ -1,19 +1,30 @@
 import * as k8s from '@pulumi/kubernetes';
 import type { Settings } from './config';
+import { CONNECTOR_DATABASE } from './connector-database';
 
 // Postgres, Redis, Vault (per-project, HA/raft), and Temporal. All use
 // fullnameOverride for stable in-cluster DNS the Helm chart relies on.
-export function deployDependencies(provider: k8s.Provider, cfg: Settings): void {
+export interface Dependencies {
+  postgresql: k8s.helm.v3.Release;
+  vault: k8s.helm.v3.Release;
+}
+
+export function deployDependencies(provider: k8s.Provider, cfg: Settings): Dependencies {
   const ns = cfg.appNamespace;
 
-  new k8s.helm.v3.Release(
+  const postgresql = new k8s.helm.v3.Release(
     'postgresql',
     {
       chart: 'postgresql',
       version: cfg.versions.postgresql,
       namespace: ns,
       repositoryOpts: { repo: 'https://charts.bitnami.com/bitnami' },
-      values: { fullnameOverride: 'postgres' },
+      values: {
+        fullnameOverride: 'postgres',
+        // The admin credential remains chart-managed. Runtime roles are
+        // reconciled separately and never own migrations.
+        auth: { database: CONNECTOR_DATABASE.database },
+      },
     },
     { provider },
   );
@@ -30,7 +41,7 @@ export function deployDependencies(provider: k8s.Provider, cfg: Settings): void 
     { provider },
   );
 
-  new k8s.helm.v3.Release(
+  const vault = new k8s.helm.v3.Release(
     'vault',
     {
       chart: 'vault',
@@ -53,4 +64,6 @@ export function deployDependencies(provider: k8s.Provider, cfg: Settings): void 
     },
     { provider },
   );
+
+  return { postgresql, vault };
 }

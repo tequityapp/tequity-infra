@@ -2,10 +2,19 @@ import * as k8s from '@pulumi/kubernetes';
 import type { Settings } from './config';
 
 // External Secrets Operator + a ClusterSecretStore pointing at the per-project
-// Vault (k8s auth), syncing into the tequity-secrets k8s Secret that tequity-helm
-// mounts.
-export function deploySecrets(provider: k8s.Provider, cfg: Settings): void {
-  new k8s.helm.v3.Release(
+// Vault through Kubernetes auth. Individual ExternalSecrets own narrowly scoped
+// runtime Secrets; credential values never pass through Pulumi inputs/state.
+export interface Secrets {
+  externalSecrets: k8s.helm.v3.Release;
+  vaultStore: k8s.apiextensions.CustomResource;
+}
+
+export function deploySecrets(
+  provider: k8s.Provider,
+  cfg: Settings,
+  vault: k8s.helm.v3.Release,
+): Secrets {
+  const externalSecrets = new k8s.helm.v3.Release(
     'external-secrets',
     {
       chart: 'external-secrets',
@@ -17,7 +26,7 @@ export function deploySecrets(provider: k8s.Provider, cfg: Settings): void {
     { provider },
   );
 
-  new k8s.apiextensions.CustomResource(
+  const vaultStore = new k8s.apiextensions.CustomResource(
     'tequity-vault-store',
     {
       apiVersion: 'external-secrets.io/v1beta1',
@@ -34,6 +43,8 @@ export function deploySecrets(provider: k8s.Provider, cfg: Settings): void {
         },
       },
     },
-    { provider },
+    { provider, dependsOn: [externalSecrets, vault] },
   );
+
+  return { externalSecrets, vaultStore };
 }
