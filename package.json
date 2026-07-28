@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "test": "jest",
+    "audit:dependencies": "npm audit --audit-level=high",
     "scan:secrets": "node scripts/secret-scan.cjs",
     "preview:offline": "jest --runInBand test/lead-cursor-offline-preview.test.ts",
     "preview": "pulumi preview",
@@ -27,6 +28,9 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   },
   "engines": {
     "node": ">=24.0.0"
