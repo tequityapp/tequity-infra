@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { execFileSync } = require('node:child_process');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 
 const RULES = [
   {
@@ -66,6 +66,7 @@ function trackedFiles() {
 function main() {
   const findings = [];
   for (const path of trackedFiles()) {
+    if (!existsSync(path)) continue;
     const contents = readFileSync(path);
     if (contents.includes(0)) continue;
     findings.push(...scanText(path, contents.toString('utf8')));
