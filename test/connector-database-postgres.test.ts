@@ -26,7 +26,7 @@ function docker(args: string[], input?: string): string {
 }
 
 describeWithDocker('connector database PostgreSQL policy integration', () => {
-  jest.setTimeout(120_000);
+  vi.setConfig({ hookTimeout: 120_000, testTimeout: 120_000 });
 
   beforeAll(() => {
     docker([

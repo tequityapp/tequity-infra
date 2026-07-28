@@ -7,9 +7,11 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc --noEmit",
-    "test": "jest",
+    "test": "vitest run --globals",
+    "audit:dependencies": "npm audit --audit-level=high",
+    "test:dependencies": "node scripts/dependency-smoke.cjs",
     "scan:secrets": "node scripts/secret-scan.cjs",
-    "preview:offline": "jest --runInBand test/*-offline-preview.test.ts",
+    "preview:offline": "vitest run --globals test/*-offline-preview.test.ts",
     "preview": "pulumi preview",
     "up": "pulumi up"
   },
@@ -22,11 +24,14 @@
     "@pulumi/gcp": "^8.10.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@types/node": "^22.10.1",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "@pulumi/gcp": {
+      "@npmcli/package-json": "7.0.5"
+    }
   },
   "engines": {
     "node": ">=24.0.0"
