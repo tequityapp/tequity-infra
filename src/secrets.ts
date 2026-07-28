@@ -1,11 +1,15 @@
 import * as k8s from '@pulumi/kubernetes';
 import type { Settings } from './config';
+import {
+  deployLeadCursorKeyringBootstrap,
+  deployLeadCursorKeyringDelivery,
+} from './lead-cursor-keyring';
 
 // External Secrets Operator + a ClusterSecretStore pointing at the per-project
 // Vault (k8s auth), syncing into the tequity-secrets k8s Secret that tequity-helm
 // mounts.
 export function deploySecrets(provider: k8s.Provider, cfg: Settings): void {
-  new k8s.helm.v3.Release(
+  const externalSecrets = new k8s.helm.v3.Release(
     'external-secrets',
     {
       chart: 'external-secrets',
@@ -36,4 +40,16 @@ export function deploySecrets(provider: k8s.Provider, cfg: Settings): void {
     },
     { provider },
   );
+
+  if (cfg.leadCursorKeyringStage !== 'disabled') {
+    const bootstrap = deployLeadCursorKeyringBootstrap(provider, cfg);
+    if (cfg.leadCursorKeyringStage === 'delivery') {
+      deployLeadCursorKeyringDelivery(
+        provider,
+        cfg,
+        { externalSecrets },
+        bootstrap,
+      );
+    }
+  }
 }

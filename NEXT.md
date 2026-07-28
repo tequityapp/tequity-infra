@@ -4,6 +4,50 @@ Running log of what landed and what's next in the platform infra (Pulumi TS: PG/
 observability stack, External Secrets). Newest entry first. The umbrella `tequity-platform/NEXT.md`
 holds the cross-repo platform narrative; this file is infra-scoped.
 
+## 2026-07-27 — Harden cursor keyring transport, lifecycle, and staged rollout
+
+The sensitive review findings on PR #9 are corrected without a live provider
+operation. Both Pulumi and External Secrets now require a reviewed HTTPS Vault
+origin and explicit CA trust references. The KV-v2 mount is protected,
+retain-on-delete, and no-delete-before-replace; bootstrap IAM is protected as
+one boundary. The ExternalSecret uses orphan ownership so delivery rollback
+does not erase its target.
+
+Rollout is now three audited stages: protected mount/IAM bootstrap (or
+non-destructive import), direct operator write with a key-material-free issue
+#5 receipt, and only then SecretStore/API delivery. Config rollback cannot
+silently destroy rotation history; decommission is a separate explicit
+destructive workflow. CI runs the repository-owned deterministic secret policy
+scanner after `npm ci`, with behavioral tests for every signature rule and no
+network installer.
+
+Refs: [infra#5](https://github.com/tequityapp/tequity-infra/issues/5),
+[PR #9](https://github.com/tequityapp/tequity-infra/pull/9),
+[ADR-0001](docs/decisions/0001-api-only-lead-cursor-keyring/README.md).
+
+## 2026-07-27 — Proposed API-only lead cursor keyring boundary
+
+Infra #5 now declares an isolated Vault KV v2 mount, exact-path read policy, and
+Kubernetes-auth role bound only to the `tequity-api` service account. Keeping
+the keyring outside the shared `secret/` mount prevents its broader legacy role
+from becoming an alternate read path. A namespaced SecretStore syncs only
+`LEADS_CURSOR_KEYS_JSON` into `tequity-api-leads-cursor`; UI, worker, the shared
+Secret, Pulumi inputs/state/outputs, previews, and logs never receive the
+keyring bytes.
+
+Rotation adds a new active key while retaining verification keys for at least
+the longest prior cursor TTL, then removes retired keys in a later audited Vault
+version. Emergency removal is explicit and intentionally invalidates issued
+cursors. The IAM decision remains Proposed and held for human security review;
+this change performs no Vault write, provider apply, or live IAM mutation. An
+explicit stack setting gates the resources and remains false for local
+development.
+
+Refs: [infra#5](https://github.com/tequityapp/tequity-infra/issues/5),
+[platform#59](https://github.com/tequityapp/tequity-platform/issues/59),
+[api#155](https://github.com/tequityapp/tequity-api/pull/155),
+[helm#6](https://github.com/tequityapp/tequity-helm/issues/6).
+
 ## 2026-07-27 — Route validation to the labeled self-hosted CI pool
 
 The actionlint and Pulumi validation jobs now target the portable `[self-hosted, ci]` pool adopted
