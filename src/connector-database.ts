@@ -277,6 +277,9 @@ export function assertConnectorRolePolicy(sql: string): void {
   if (/\bgrant\s+all\b/i.test(normalized)) {
     throw new Error('Unsafe connector role SQL: GRANT ALL is forbidden.');
   }
+  if (/\bwith\s+grant\s+option\b/i.test(normalized)) {
+    throw new Error('Unsafe connector role SQL: delegated grants are forbidden.');
+  }
 
   const allowedGrants = new Set([
     'grant connect on database %i to tequity_connector',
@@ -288,7 +291,7 @@ export function assertConnectorRolePolicy(sql: string): void {
   ]);
   const grants = [
     ...normalized.matchAll(
-      /\bgrant\s+[^'";\n]+?\s+to\s+tequity_connector\b(?<trailing>[^'";\n]*)/g,
+      /\bgrant\s+[^'";]+?\s+to\s+tequity_connector\b(?<trailing>[^'";]*)/g,
     ),
   ];
   const canonicalGrants = grants.map((grant) => grant[0].replace(/\s+/g, ' ').trim());

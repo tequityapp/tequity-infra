@@ -61,6 +61,27 @@ describe('connector database role policy', () => {
         'grant usage on schema public to tequity_connector with grant option;',
       ),
     ],
+    [
+      'multiline delegable allowlisted grant',
+      connectorRoleSql.replace(
+        'grant usage on schema public to tequity_connector;',
+        'grant usage on schema public to tequity_connector\nwith grant option;',
+      ),
+    ],
+    [
+      'tabbed multiline delegable allowlisted grant',
+      connectorRoleSql.replace(
+        'grant usage on schema public to tequity_connector;',
+        'grant usage on schema public\n\tto tequity_connector\n\twith\tgrant\toption;',
+      ),
+    ],
+    [
+      'CRLF multiline delegable allowlisted grant',
+      connectorRoleSql.replace(
+        'grant usage on schema public to tequity_connector;',
+        'grant usage on schema public\r\n  to tequity_connector\r\n  with grant option;',
+      ),
+    ],
   ])('rejects unsafe %s SQL before a Pulumi preview can register resources', (_case, sql) => {
     expect(() => buildConnectorRoleConfigMapArgs('tequity', sql)).toThrow(/unsafe connector role/i);
   });
