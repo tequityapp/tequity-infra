@@ -5,13 +5,52 @@ whatever kube context is configured (kind locally, GKE optionally) and deploys,
 in order:
 
 1. **Policy** — Kyverno + restricted Pod Security on the app namespace.
-2. **Dependencies** — Postgres, Redis, Vault (per-project), Temporal.
+2. **Dependencies** — Postgres, Redis, optional shared Vault, Temporal.
 3. **Observability** — kube-prometheus-stack (Prometheus/Grafana) + OTel Collector.
 4. **Secrets** — External Secrets Operator + a ClusterSecretStore on the project Vault.
 5. **Connector database boundary** — a dedicated RLS runtime role and Vault-backed Secret.
 6. **Lead cursor keyring** — API-only Vault IAM + a dedicated ExternalSecret.
 
 All chart versions are pinned in `src/config.ts` (overridable per stack).
+
+The legacy shared Vault path is disabled by default, including for local
+development. Its verified-TLS migration and rollback contract is recorded in
+`docs/decisions/0002-shared-vault-verified-tls/README.md`.
+Disabled stacks deploy neither Vault nor the shared store. Before adopting this
+program on a stack that already manages Vault, configure `bootstrap` and its
+trust references so the protected release is updated in place rather than
+planned for removal.
+
+## Shared Vault verified-TLS migration
+
+Do not place certificate bytes, private keys, Vault tokens, or application
+secrets in Pulumi config. Provision a TLS Secret in the application namespace
+and a public CA ConfigMap that External Secrets can read. The certificate must
+cover `vault.<application namespace>`.
+
+Bootstrap configuration references only those existing objects:
+
+- `tequity-infra:sharedVaultTlsStage=bootstrap`
+- `tequity-infra:sharedVaultTlsSecretName`
+- `tequity-infra:sharedVaultTlsCertKey` (defaults to `tls.crt`)
+- `tequity-infra:sharedVaultTlsPrivateKeyKey` (defaults to `tls.key`)
+- `tequity-infra:sharedVaultCaConfigMapName`
+- `tequity-infra:sharedVaultCaConfigMapKey`
+
+Before applying bootstrap to an existing stack, refresh state and confirm the
+managed `vault` release remains present. Review the preview for a TLS-only
+listener, chart-wide HTTPS service/client settings, CA-mounted health checks,
+and no store. Verify the served chain and hostname from the
+`external-secrets` namespace, and inventory every live `ExternalSecret` that
+names `tequity-vault`.
+
+Record the key-material-free inventory and TLS results as a comment on infra
+issue #10. Then set `tequity-infra:sharedVaultTlsStage=delivery` and
+`tequity-infra:sharedVaultTlsReceipt` to that exact comment URL. Delivery adds
+the HTTPS store with the reviewed CA reference. If any sync or workload check
+fails, return to `bootstrap`; this removes the store and fails closed without
+deleting the protected Vault release. Plaintext and TLS-verification bypasses
+are unsupported.
 
 ```bash
 npm ci

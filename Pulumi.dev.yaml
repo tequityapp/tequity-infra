@@ -3,3 +3,4 @@ config:
   tequity-infra:kubeContext: kind-tequity
   tequity-infra:appNamespace: tequity
   tequity-infra:leadCursorKeyringStage: disabled
+  tequity-infra:sharedVaultTlsStage: disabled

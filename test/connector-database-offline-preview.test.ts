@@ -71,6 +71,7 @@ describe('connector database offline Pulumi preview', () => {
         kubeContext: 'offline-preview',
         appNamespace: 'tequity',
         leadCursorKeyringStage: 'disabled',
+        sharedVaultTlsStage: 'disabled',
         versions: defaultVersions,
       },
       { postgresql, externalSecrets, vaultStore },

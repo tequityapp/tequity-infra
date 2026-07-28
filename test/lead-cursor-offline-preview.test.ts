@@ -59,6 +59,7 @@ describe('lead cursor keyring offline Pulumi preview', () => {
       leadCursorVault: trustedVault,
       leadCursorBootstrapReceipt:
         'https://github.com/tequityapp/tequity-infra/issues/5#issuecomment-123456',
+      sharedVaultTlsStage: 'disabled' as const,
       versions: defaultVersions,
     };
     const bootstrap = deployLeadCursorKeyringBootstrap(
