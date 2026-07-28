@@ -286,10 +286,15 @@ export function assertConnectorRolePolicy(sql: string): void {
     'grant select, insert on public.audit_event to tequity_connector',
     'grant insert on public.outbox to tequity_connector',
   ]);
-  const grants = normalized.match(/\bgrant\s+[^'";\n]+?\s+to\s+tequity_connector\b/g) ?? [];
-  const canonicalGrants = grants.map((grant) => grant.replace(/\s+/g, ' ').trim());
+  const grants = [
+    ...normalized.matchAll(
+      /\bgrant\s+[^'";\n]+?\s+to\s+tequity_connector\b(?<trailing>[^'";\n]*)/g,
+    ),
+  ];
+  const canonicalGrants = grants.map((grant) => grant[0].replace(/\s+/g, ' ').trim());
   if (
     canonicalGrants.length !== allowedGrants.size ||
+    grants.some((grant) => grant.groups?.trailing.trim() !== '') ||
     canonicalGrants.some((grant) => !allowedGrants.has(grant)) ||
     [...allowedGrants].some((grant) => !canonicalGrants.includes(grant))
   ) {

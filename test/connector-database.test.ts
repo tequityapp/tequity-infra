@@ -54,6 +54,13 @@ describe('connector database role policy', () => {
       'unallowlisted function grant',
       `${connectorRoleSql}\ngrant execute on function public.escalate() to tequity_connector;`,
     ],
+    [
+      'delegable allowlisted grant',
+      connectorRoleSql.replace(
+        'grant usage on schema public to tequity_connector;',
+        'grant usage on schema public to tequity_connector with grant option;',
+      ),
+    ],
   ])('rejects unsafe %s SQL before a Pulumi preview can register resources', (_case, sql) => {
     expect(() => buildConnectorRoleConfigMapArgs('tequity', sql)).toThrow(/unsafe connector role/i);
   });

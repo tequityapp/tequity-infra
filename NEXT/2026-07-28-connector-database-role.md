@@ -22,5 +22,7 @@ Reconciliation also removes PUBLIC-derived database, schema, relation, column,
 sequence, and function privileges before applying the exact allowlist, then
 verifies effective privileges through PostgreSQL's `has_*_privilege` checks.
 An offline Pulumi-mocks preview locks the registered resource graph and secret
-references without contacting or mutating a provider.
+references without contacting or mutating a provider. A Docker-backed
+PostgreSQL test seeds hostile PUBLIC grants and proves reconciliation removes
+them while FORCE RLS still returns only the selected tenant's row.
 Refs: #3, tequity-helm#3/#5, ADR-0010, ADR-0020, ADR-0033.
