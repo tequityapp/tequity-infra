@@ -18,6 +18,40 @@ export const CONNECTOR_DATABASE = Object.freeze({
     'postgres:17.2-alpine3.21@sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96',
 });
 
+interface ConnectorGrant {
+  privileges: readonly string[];
+  targetKind: 'database' | 'schema' | 'table';
+  target: string;
+}
+
+const connectorGrantPolicy = Object.freeze([
+  { privileges: ['connect'], targetKind: 'database', target: '%I' },
+  { privileges: ['usage'], targetKind: 'schema', target: 'public' },
+  {
+    privileges: ['select', 'insert', 'update', 'delete'],
+    targetKind: 'table',
+    target: 'public.storage_connection',
+  },
+  {
+    privileges: ['select', 'insert', 'update', 'delete'],
+    targetKind: 'table',
+    target: 'public.storage_token',
+  },
+  {
+    privileges: ['select', 'insert'],
+    targetKind: 'table',
+    target: 'public.audit_event',
+  },
+  { privileges: ['insert'], targetKind: 'table', target: 'public.outbox' },
+] as const satisfies readonly ConnectorGrant[]);
+
+function renderConnectorGrant(grant: ConnectorGrant): string {
+  const targetKind = grant.targetKind === 'table' ? '' : `${grant.targetKind} `;
+  return `grant ${grant.privileges.join(', ')} on ${targetKind}${grant.target} to tequity_connector`;
+}
+
+const connectorGrants = connectorGrantPolicy.map(renderConnectorGrant);
+
 /**
  * Idempotent reconciliation for the connector-only runtime role.
  *
@@ -67,7 +101,7 @@ select format(
 )
 \gexec
 select format(
-  'grant connect on database %I to tequity_connector',
+  '${connectorGrants[0]}',
   current_database()
 )
 \gexec
@@ -108,7 +142,7 @@ begin
 end
 $$;
 
-grant usage on schema public to tequity_connector;
+${connectorGrants[1]};
 
 -- Pulumi can provision PostgreSQL before the worker migrations have created
 -- these tables. Reconcile only existing allowlisted relations; the CronJob
@@ -116,16 +150,16 @@ grant usage on schema public to tequity_connector;
 do $$
 begin
   if to_regclass('public.storage_connection') is not null then
-    execute 'grant select, insert, update, delete on public.storage_connection to tequity_connector';
+    execute '${connectorGrants[2]}';
   end if;
   if to_regclass('public.storage_token') is not null then
-    execute 'grant select, insert, update, delete on public.storage_token to tequity_connector';
+    execute '${connectorGrants[3]}';
   end if;
   if to_regclass('public.audit_event') is not null then
-    execute 'grant select, insert on public.audit_event to tequity_connector';
+    execute '${connectorGrants[4]}';
   end if;
   if to_regclass('public.outbox') is not null then
-    execute 'grant insert on public.outbox to tequity_connector';
+    execute '${connectorGrants[5]}';
   end if;
 end
 $$;
@@ -281,27 +315,18 @@ export function assertConnectorRolePolicy(sql: string): void {
     throw new Error('Unsafe connector role SQL: delegated grants are forbidden.');
   }
 
-  const allowedGrants = new Set([
-    'grant connect on database %i to tequity_connector',
-    'grant usage on schema public to tequity_connector',
-    'grant select, insert, update, delete on public.storage_connection to tequity_connector',
-    'grant select, insert, update, delete on public.storage_token to tequity_connector',
-    'grant select, insert on public.audit_event to tequity_connector',
-    'grant insert on public.outbox to tequity_connector',
-  ]);
-  const grants = [
-    ...normalized.matchAll(
-      /\bgrant\s+[^'";]+?\s+to\s+tequity_connector\b(?<trailing>[^'";]*)/g,
-    ),
-  ];
-  const canonicalGrants = grants.map((grant) => grant[0].replace(/\s+/g, ' ').trim());
+  const grantTokens = sql.match(/\bgrant\b/gi) ?? [];
   if (
-    canonicalGrants.length !== allowedGrants.size ||
-    grants.some((grant) => grant.groups?.trailing.trim() !== '') ||
-    canonicalGrants.some((grant) => !allowedGrants.has(grant)) ||
-    [...allowedGrants].some((grant) => !canonicalGrants.includes(grant))
+    grantTokens.length !== connectorGrants.length ||
+    connectorGrants.some((grant) => {
+      const canonicalGrant = grant.replace('%I', '%i');
+      return normalized.split(canonicalGrant).length !== 2;
+    }) ||
+    sql !== connectorRoleSql
   ) {
-    throw new Error('Unsafe connector role SQL: grants must exactly match the structural allowlist.');
+    throw new Error(
+      'Unsafe connector role SQL: executable program must match the generated grant-policy AST.',
+    );
   }
   for (const required of requiredRoleSql) {
     if (!normalized.includes(required)) {

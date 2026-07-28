@@ -82,6 +82,30 @@ describe('connector database role policy', () => {
         'grant usage on schema public\r\n  to tequity_connector\r\n  with grant option;',
       ),
     ],
+    [
+      'quoted connector role membership after commit',
+      `${connectorRoleSql}\ngrant pg_read_all_data to "tequity_connector";`,
+    ],
+    [
+      'quoted relation grant',
+      `${connectorRoleSql}\ngrant select on table "public"."user_account" to "tequity_connector";`,
+    ],
+    [
+      'alternate grantee',
+      `${connectorRoleSql}\ngrant select on table public.user_account to connector_alias;`,
+    ],
+    [
+      'post-commit executable grant',
+      `${connectorRoleSql}\ngrant select on table public.user_account to tequity_connector;`,
+    ],
+    [
+      'grant-token comment deception',
+      `${connectorRoleSql}\n-- grant select on public.user_account to tequity_connector`,
+    ],
+    [
+      'grant-token string deception',
+      `${connectorRoleSql}\nselect 'grant select on public.user_account to tequity_connector';`,
+    ],
   ])('rejects unsafe %s SQL before a Pulumi preview can register resources', (_case, sql) => {
     expect(() => buildConnectorRoleConfigMapArgs('tequity', sql)).toThrow(/unsafe connector role/i);
   });
