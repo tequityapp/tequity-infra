@@ -11,7 +11,7 @@
     "audit:dependencies": "npm audit --audit-level=high",
     "test:dependencies": "node scripts/dependency-smoke.cjs",
     "scan:secrets": "node scripts/secret-scan.cjs",
-    "preview:offline": "vitest run --globals test/lead-cursor-offline-preview.test.ts",
+    "preview:offline": "vitest run --globals test/*-offline-preview.test.ts",
     "preview": "pulumi preview",
     "up": "pulumi up"
   },
