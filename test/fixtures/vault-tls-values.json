@@ -1,0 +1,113 @@
+{
+  "fullnameOverride": "vault",
+  "global": {
+    "tlsDisable": false
+  },
+  "injector": {
+    "enabled": false
+  },
+  "server": {
+    "volumes": [
+      {
+        "name": "vault-server-tls",
+        "secret": {
+          "secretName": "vault-server-tls"
+        }
+      },
+      {
+        "name": "vault-server-ca",
+        "configMap": {
+          "name": "approved-vault-ca",
+          "items": [
+            {
+              "key": "ca.crt",
+              "path": "ca.crt"
+            }
+          ]
+        }
+      }
+    ],
+    "volumeMounts": [
+      {
+        "name": "vault-server-tls",
+        "mountPath": "/vault/userconfig/vault-server-tls",
+        "readOnly": true
+      },
+      {
+        "name": "vault-server-ca",
+        "mountPath": "/vault/tls/ca",
+        "readOnly": true
+      }
+    ],
+    "extraEnvironmentVars": {
+      "VAULT_ADDR": "https://vault.tequity:8200",
+      "VAULT_CACERT": "/vault/tls/ca/ca.crt"
+    },
+    "readinessProbe": {
+      "enabled": false
+    },
+    "livenessProbe": {
+      "enabled": true,
+      "execCommand": [
+        "/bin/sh",
+        "-ec",
+        "vault status"
+      ]
+    },
+    "extraContainers": [
+      {
+        "name": "vault-tls-readiness",
+        "image": "hashicorp/vault:1.17.2@sha256:aaaedf0b3b34560157cc7c06f50f794eb7baa071165f2eed4db94b44db901806",
+        "imagePullPolicy": "IfNotPresent",
+        "command": [
+          "/bin/sh",
+          "-ec",
+          "while true; do sleep 3600; done"
+        ],
+        "env": [
+          {
+            "name": "VAULT_ADDR",
+            "value": "https://vault.tequity:8200"
+          },
+          {
+            "name": "VAULT_CACERT",
+            "value": "/vault/tls/ca/ca.crt"
+          }
+        ],
+        "readinessProbe": {
+          "exec": {
+            "command": [
+              "/bin/sh",
+              "-ec",
+              "vault status"
+            ]
+          },
+          "initialDelaySeconds": 5,
+          "periodSeconds": 5,
+          "timeoutSeconds": 3,
+          "failureThreshold": 2
+        },
+        "securityContext": {
+          "allowPrivilegeEscalation": false,
+          "capabilities": {
+            "drop": [
+              "ALL"
+            ]
+          },
+          "readOnlyRootFilesystem": true,
+          "runAsNonRoot": true
+        },
+        "volumeMounts": [
+          {
+            "name": "vault-server-ca",
+            "mountPath": "/vault/tls/ca",
+            "readOnly": true
+          }
+        ]
+      }
+    ],
+    "standalone": {
+      "config": "ui = true\nlistener \"tcp\" {\n  address = \"0.0.0.0:8200\"\n  cluster_address = \"0.0.0.0:8201\"\n  tls_disable = 0\n  tls_cert_file = \"/vault/userconfig/vault-server-tls/tls.crt\"\n  tls_key_file = \"/vault/userconfig/vault-server-tls/tls.key\"\n}\nstorage \"file\" {\n  path = \"/vault/data\"\n}"
+    }
+  }
+}

@@ -21,12 +21,15 @@ const dependencies = deployDependencies(provider, cfg);
 deployObservability(provider, cfg);
 // 4. Wire secret sync from the per-project Vault into the cluster.
 const secrets = deploySecrets(provider, cfg, dependencies.vault);
-// 5. Sync and reconcile the dedicated least-privilege connector DB role.
-deployConnectorDatabase(provider, cfg, {
-  postgresql: dependencies.postgresql,
-  externalSecrets: secrets.externalSecrets,
-  vaultStore: secrets.vaultStore,
-});
+// 5. Sync and reconcile the dedicated least-privilege connector DB role only
+// after the verified-TLS shared store reaches its audited delivery stage.
+if (secrets.vaultStore) {
+  deployConnectorDatabase(provider, cfg, {
+    postgresql: dependencies.postgresql,
+    externalSecrets: secrets.externalSecrets,
+    vaultStore: secrets.vaultStore,
+  });
+}
 
 export const environment = cfg.environment;
 export const appNamespace = cfg.appNamespace;
