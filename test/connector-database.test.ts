@@ -17,6 +17,10 @@ describe('connector database role policy', () => {
       /\bnocreatedb\b[\s\S]*\bnocreaterole\b[\s\S]*\bnoinherit\b[\s\S]*\bnoreplication\b/i,
     );
     expect(connectorRoleSql).toContain('revoke all privileges on all tables in schema public');
+    expect(connectorRoleSql).toContain('revoke all privileges on schema public from public');
+    expect(connectorRoleSql).toContain(
+      'revoke all privileges on all functions in schema public from public',
+    );
     expect(connectorRoleSql).toContain(
       'grant select, insert, update, delete on public.storage_connection',
     );
@@ -30,6 +34,11 @@ describe('connector database role policy', () => {
     expect(connectorRoleSql).toContain("to_regclass('public.audit_event')");
     expect(connectorRoleSql).toContain("to_regclass('public.outbox')");
     expect(connectorRoleSql).toMatch(/\bbegin;[\s\S]*\bcommit;/i);
+    expect(connectorRoleSql).toContain("has_database_privilege('tequity_connector'");
+    expect(connectorRoleSql).toContain("has_schema_privilege('tequity_connector'");
+    expect(connectorRoleSql).toContain("has_table_privilege('tequity_connector'");
+    expect(connectorRoleSql).toContain("has_any_column_privilege('tequity_connector'");
+    expect(connectorRoleSql).toContain("has_function_privilege('tequity_connector'");
     expect(connectorRoleSql).not.toMatch(/\bgrant all\b/i);
   });
 
@@ -37,6 +46,14 @@ describe('connector database role policy', () => {
     ['superuser', connectorRoleSql.replace(/\bnosuperuser\b/i, 'SUPERUSER')],
     ['BYPASSRLS', connectorRoleSql.replace(/\bnobypassrls\b/i, 'BYPASSRLS')],
     ['role membership', `${connectorRoleSql}\ngrant pg_read_all_data to tequity_connector;`],
+    [
+      'unallowlisted table grant',
+      `${connectorRoleSql}\ngrant select on public.user_account to tequity_connector;`,
+    ],
+    [
+      'unallowlisted function grant',
+      `${connectorRoleSql}\ngrant execute on function public.escalate() to tequity_connector;`,
+    ],
   ])('rejects unsafe %s SQL before a Pulumi preview can register resources', (_case, sql) => {
     expect(() => buildConnectorRoleConfigMapArgs('tequity', sql)).toThrow(/unsafe connector role/i);
   });

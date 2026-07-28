@@ -1,5 +1,9 @@
 import * as k8s from '@pulumi/kubernetes';
 import type { Settings } from './config';
+import {
+  deployLeadCursorKeyringBootstrap,
+  deployLeadCursorKeyringDelivery,
+} from './lead-cursor-keyring';
 
 // External Secrets Operator + a ClusterSecretStore pointing at the per-project
 // Vault through Kubernetes auth. Individual ExternalSecrets own narrowly scoped
@@ -45,6 +49,18 @@ export function deploySecrets(
     },
     { provider, dependsOn: [externalSecrets, vault] },
   );
+
+  if (cfg.leadCursorKeyringStage !== 'disabled') {
+    const bootstrap = deployLeadCursorKeyringBootstrap(provider, cfg);
+    if (cfg.leadCursorKeyringStage === 'delivery') {
+      deployLeadCursorKeyringDelivery(
+        provider,
+        cfg,
+        { externalSecrets },
+        bootstrap,
+      );
+    }
+  }
 
   return { externalSecrets, vaultStore };
 }

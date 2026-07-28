@@ -18,4 +18,9 @@ Credential rotation is an explicit Vault operation over stdin, followed by ESO
 and role reconciliation while the Helm connector flag is disabled. Policy tests
 make unsafe role SQL fail before resource registration and prove generated
 secret values cannot be serialized into resource arguments/source/log output.
+Reconciliation also removes PUBLIC-derived database, schema, relation, column,
+sequence, and function privileges before applying the exact allowlist, then
+verifies effective privileges through PostgreSQL's `has_*_privilege` checks.
+An offline Pulumi-mocks preview locks the registered resource graph and secret
+references without contacting or mutating a provider.
 Refs: #3, tequity-helm#3/#5, ADR-0010, ADR-0020, ADR-0033.

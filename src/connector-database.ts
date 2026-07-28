@@ -77,6 +77,37 @@ revoke all privileges on all tables in schema public from tequity_connector;
 revoke all privileges on all sequences in schema public from tequity_connector;
 revoke all privileges on all functions in schema public from tequity_connector;
 
+-- PostgreSQL's PUBLIC pseudo-role is inherited by every login and cannot be
+-- denied for one role. Remove its default paths before granting the connector
+-- allowlist; object owners retain their implicit privileges.
+select format('revoke all privileges on database %I from public', current_database())
+\gexec
+revoke all privileges on schema public from public;
+revoke all privileges on all tables in schema public from public;
+revoke all privileges on all sequences in schema public from public;
+revoke all privileges on all functions in schema public from public;
+
+-- Remove any historical column-level grants, which table-level REVOKE does not
+-- necessarily clear.
+do $$
+declare
+  column_record record;
+begin
+  for column_record in
+    select table_schema, table_name, column_name
+    from information_schema.columns
+    where table_schema = 'public'
+  loop
+    execute format(
+      'revoke select (%1$I), insert (%1$I), update (%1$I), references (%1$I) on table %2$I.%3$I from tequity_connector, public',
+      column_record.column_name,
+      column_record.table_schema,
+      column_record.table_name
+    );
+  end loop;
+end
+$$;
+
 grant usage on schema public to tequity_connector;
 
 -- Pulumi can provision PostgreSQL before the worker migrations have created
@@ -102,6 +133,8 @@ $$;
 do $$
 declare
   role_record record;
+  relation_record record;
+  function_record record;
 begin
   select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolinherit, rolreplication
     into strict role_record
@@ -117,6 +150,88 @@ begin
   then
     raise exception 'unsafe connector role attributes; refusing reconciliation';
   end if;
+
+  if not has_database_privilege('tequity_connector', current_database(), 'CONNECT')
+    or has_database_privilege('tequity_connector', current_database(), 'CREATE')
+    or has_database_privilege('tequity_connector', current_database(), 'TEMP')
+    or not has_schema_privilege('tequity_connector', 'public', 'USAGE')
+    or has_schema_privilege('tequity_connector', 'public', 'CREATE')
+  then
+    raise exception 'unsafe connector database or schema privileges';
+  end if;
+
+  for relation_record in
+    select c.oid, c.relname, c.relkind
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm', 'f', 'S')
+  loop
+    if relation_record.relkind = 'S' then
+      if has_sequence_privilege('tequity_connector', relation_record.oid, 'USAGE')
+        or has_sequence_privilege('tequity_connector', relation_record.oid, 'SELECT')
+        or has_sequence_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+      then
+        raise exception 'unsafe connector sequence privilege on %', relation_record.relname;
+      end if;
+    elsif relation_record.relname in ('storage_connection', 'storage_token') then
+      if not has_table_privilege('tequity_connector', relation_record.oid, 'SELECT')
+        or not has_table_privilege('tequity_connector', relation_record.oid, 'INSERT')
+        or not has_table_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+        or not has_table_privilege('tequity_connector', relation_record.oid, 'DELETE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRUNCATE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'REFERENCES')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRIGGER')
+      then
+        raise exception 'incorrect connector storage privilege on %', relation_record.relname;
+      end if;
+    elsif relation_record.relname = 'audit_event' then
+      if not has_table_privilege('tequity_connector', relation_record.oid, 'SELECT')
+        or not has_table_privilege('tequity_connector', relation_record.oid, 'INSERT')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'DELETE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRUNCATE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'REFERENCES')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRIGGER')
+      then
+        raise exception 'incorrect connector audit privilege';
+      end if;
+    elsif relation_record.relname = 'outbox' then
+      if not has_table_privilege('tequity_connector', relation_record.oid, 'INSERT')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'SELECT')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'DELETE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRUNCATE')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'REFERENCES')
+        or has_table_privilege('tequity_connector', relation_record.oid, 'TRIGGER')
+      then
+        raise exception 'incorrect connector outbox privilege';
+      end if;
+    elsif has_table_privilege('tequity_connector', relation_record.oid, 'SELECT')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'INSERT')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'DELETE')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'TRUNCATE')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'REFERENCES')
+      or has_table_privilege('tequity_connector', relation_record.oid, 'TRIGGER')
+      or has_any_column_privilege('tequity_connector', relation_record.oid, 'SELECT')
+      or has_any_column_privilege('tequity_connector', relation_record.oid, 'INSERT')
+      or has_any_column_privilege('tequity_connector', relation_record.oid, 'UPDATE')
+      or has_any_column_privilege('tequity_connector', relation_record.oid, 'REFERENCES')
+    then
+      raise exception 'unsafe connector privilege on unallowlisted relation %', relation_record.relname;
+    end if;
+  end loop;
+
+  for function_record in
+    select p.oid, p.proname
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+  loop
+    if has_function_privilege('tequity_connector', function_record.oid, 'EXECUTE') then
+      raise exception 'unsafe connector function privilege on %', function_record.proname;
+    end if;
+  end loop;
 end
 $$;
 
@@ -131,6 +246,11 @@ const requiredRoleSql = [
   'nocreaterole',
   'noinherit',
   'noreplication',
+  "revoke all privileges on database %i from public",
+  'revoke all privileges on schema public from public',
+  'revoke all privileges on all tables in schema public from public',
+  'revoke all privileges on all sequences in schema public from public',
+  'revoke all privileges on all functions in schema public from public',
   'revoke all privileges on all tables in schema public from tequity_connector',
   "to_regclass('public.storage_connection')",
   'grant select, insert, update, delete on public.storage_connection to tequity_connector',
@@ -156,6 +276,24 @@ export function assertConnectorRolePolicy(sql: string): void {
   }
   if (/\bgrant\s+all\b/i.test(normalized)) {
     throw new Error('Unsafe connector role SQL: GRANT ALL is forbidden.');
+  }
+
+  const allowedGrants = new Set([
+    'grant connect on database %i to tequity_connector',
+    'grant usage on schema public to tequity_connector',
+    'grant select, insert, update, delete on public.storage_connection to tequity_connector',
+    'grant select, insert, update, delete on public.storage_token to tequity_connector',
+    'grant select, insert on public.audit_event to tequity_connector',
+    'grant insert on public.outbox to tequity_connector',
+  ]);
+  const grants = normalized.match(/\bgrant\s+[^'";\n]+?\s+to\s+tequity_connector\b/g) ?? [];
+  const canonicalGrants = grants.map((grant) => grant.replace(/\s+/g, ' ').trim());
+  if (
+    canonicalGrants.length !== allowedGrants.size ||
+    canonicalGrants.some((grant) => !allowedGrants.has(grant)) ||
+    [...allowedGrants].some((grant) => !canonicalGrants.includes(grant))
+  ) {
+    throw new Error('Unsafe connector role SQL: grants must exactly match the structural allowlist.');
   }
   for (const required of requiredRoleSql) {
     if (!normalized.includes(required)) {
@@ -362,11 +500,18 @@ export interface ConnectorDatabaseDependencies {
   vaultStore: k8s.apiextensions.CustomResource;
 }
 
+export interface ConnectorDatabaseResources {
+  configMap: k8s.core.v1.ConfigMap;
+  externalSecret: k8s.apiextensions.CustomResource;
+  bootstrapJob: k8s.batch.v1.Job;
+  reconcileCronJob: k8s.batch.v1.CronJob;
+}
+
 export function deployConnectorDatabase(
   provider: k8s.Provider,
   cfg: Settings,
   dependencies: ConnectorDatabaseDependencies,
-): void {
+): ConnectorDatabaseResources {
   const configMap = new k8s.core.v1.ConfigMap(
     'connector-role-sql',
     buildConnectorRoleConfigMapArgs(cfg.appNamespace),
@@ -382,14 +527,16 @@ export function deployConnectorDatabase(
   );
   const resourceDependencies = [dependencies.postgresql, configMap, externalSecret];
 
-  new k8s.batch.v1.Job(
+  const bootstrapJob = new k8s.batch.v1.Job(
     'connector-role-bootstrap',
     buildConnectorRoleBootstrapJobArgs(cfg.appNamespace),
     { provider, dependsOn: resourceDependencies },
   );
-  new k8s.batch.v1.CronJob(
+  const reconcileCronJob = new k8s.batch.v1.CronJob(
     'connector-role-reconcile',
     buildConnectorRoleCronJobArgs(cfg.appNamespace),
     { provider, dependsOn: resourceDependencies },
   );
+
+  return { configMap, externalSecret, bootstrapJob, reconcileCronJob };
 }

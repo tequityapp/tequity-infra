@@ -8,12 +8,15 @@
   "scripts": {
     "build": "tsc --noEmit",
     "test": "jest",
+    "scan:secrets": "node scripts/secret-scan.cjs",
+    "preview:offline": "jest --runInBand test/*-offline-preview.test.ts",
     "preview": "pulumi preview",
     "up": "pulumi up"
   },
   "dependencies": {
     "@pulumi/kubernetes": "^4.18.0",
-    "@pulumi/pulumi": "^3.140.0"
+    "@pulumi/pulumi": "^3.140.0",
+    "@pulumi/vault": "7.9.0"
   },
   "optionalDependencies": {
     "@pulumi/gcp": "^8.10.0"
