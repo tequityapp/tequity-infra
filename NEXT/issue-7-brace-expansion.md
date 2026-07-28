@@ -1,8 +1,9 @@
 # Remediate brace-expansion dependency chains
 
-- Pin all transitive `brace-expansion` instances to 5.0.8, the first release
-  outside GHSA-mh99-v99m-4gvg's affected range.
-- Keep the override until Jest and Pulumi dependency trees natively resolve a
-  patched release.
+- Replace Jest's legacy `glob` chain with Vitest and constrain the Pulumi GCP
+  package-json consumer to a compatible release whose `glob`/`minimatch` chain
+  natively resolves `brace-expansion` 5.0.8.
+- Exercise every installed `glob` and `minimatch` instance with brace patterns
+  so dependency overrides cannot silently introduce API incompatibilities.
 - Require the full dependency audit, build, tests, and offline Pulumi mock
   preview to pass.
