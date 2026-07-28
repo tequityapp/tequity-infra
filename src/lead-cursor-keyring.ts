@@ -1,6 +1,11 @@
 import * as k8s from '@pulumi/kubernetes';
+import * as pulumi from '@pulumi/pulumi';
 import * as vault from '@pulumi/vault';
-import type { Settings } from './config';
+import {
+  assertLeadCursorBootstrapReceipt,
+  type LeadCursorVaultConnection,
+  type Settings,
+} from './config';
 
 export const LEAD_CURSOR_KEYRING = Object.freeze({
   apiServiceAccountName: 'tequity-api',
@@ -16,9 +21,63 @@ export const LEAD_CURSOR_KEYRING = Object.freeze({
   tokenTtlSeconds: 600,
 });
 
+export const LEAD_CURSOR_MOUNT_LIFECYCLE = Object.freeze({
+  protect: true,
+  retainOnDelete: true,
+  deleteBeforeReplace: false,
+});
+
+export const LEAD_CURSOR_BOOTSTRAP_LIFECYCLE = Object.freeze({
+  protect: true,
+  deleteBeforeReplace: false,
+});
+
 export const leadCursorVaultPolicy = `path "${LEAD_CURSOR_KEYRING.vaultMount}/data/${LEAD_CURSOR_KEYRING.vaultRemoteKey}" {
   capabilities = ["read"]
 }`;
+
+export function assertLeadCursorVaultConnection(
+  connection: LeadCursorVaultConnection,
+): void {
+  let url: URL;
+  try {
+    url = new URL(connection.server);
+  } catch {
+    throw new Error('Lead cursor keyring requires a trusted HTTPS Vault endpoint.');
+  }
+  if (
+    url.protocol !== 'https:'
+    || !url.hostname
+    || url.username
+    || url.password
+    || (url.pathname !== '/' && url.pathname !== '')
+    || url.search
+    || url.hash
+    || url.hostname === 'localhost'
+    || url.hostname.endsWith('.localhost')
+    || url.hostname === '127.0.0.1'
+    || url.hostname === '::1'
+    || !/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(url.hostname)
+    || !/^[a-z0-9]([-a-z0-9.]*[a-z0-9])?$/i.test(connection.caConfigMapName)
+    || !/^[A-Za-z0-9._-]+$/.test(connection.caConfigMapKey)
+    || connection.caCertFile.trim().length === 0
+  ) {
+    throw new Error('Lead cursor keyring requires a trusted HTTPS Vault endpoint.');
+  }
+}
+
+export function buildLeadCursorVaultProviderArgs(
+  connection: LeadCursorVaultConnection,
+): vault.ProviderArgs {
+  assertLeadCursorVaultConnection(connection);
+  return {
+    address: connection.server,
+    caCertFile: connection.caCertFile,
+    skipTlsVerify: false,
+    tokenName: 'tequity-infra-lead-cursor-bootstrap',
+    maxLeaseTtlSeconds: 1_200,
+  };
+}
 
 export function buildLeadCursorVaultMountArgs(): vault.MountArgs {
   return {
@@ -72,7 +131,9 @@ export function buildLeadCursorServiceAccountArgs(
 
 export function buildLeadCursorSecretStoreArgs(
   namespace: string,
+  connection: LeadCursorVaultConnection,
 ): k8s.apiextensions.CustomResourceArgs {
+  assertLeadCursorVaultConnection(connection);
   return {
     apiVersion: 'external-secrets.io/v1beta1',
     kind: 'SecretStore',
@@ -87,9 +148,14 @@ export function buildLeadCursorSecretStoreArgs(
     spec: {
       provider: {
         vault: {
-          server: `http://vault.${namespace}:8200`,
+          server: connection.server,
           path: LEAD_CURSOR_KEYRING.vaultMount,
           version: 'v2',
+          caProvider: {
+            type: 'ConfigMap',
+            name: connection.caConfigMapName,
+            key: connection.caConfigMapKey,
+          },
           auth: {
             kubernetes: {
               mountPath: LEAD_CURSOR_KEYRING.vaultAuthBackend,
@@ -128,7 +194,7 @@ export function buildLeadCursorExternalSecretArgs(
       },
       target: {
         name: LEAD_CURSOR_KEYRING.kubernetesSecretName,
-        creationPolicy: 'Owner',
+        creationPolicy: 'Orphan',
         deletionPolicy: 'Retain',
         template: {
           engineVersion: 'v2',
@@ -158,45 +224,95 @@ export interface LeadCursorKeyringDependencies {
   externalSecrets: k8s.helm.v3.Release;
 }
 
-export interface LeadCursorKeyringResources {
+export interface LeadCursorKeyringBootstrapResources {
+  vaultProvider: vault.Provider;
   mount: vault.Mount;
   policy: vault.Policy;
   authRole: vault.kubernetes.AuthBackendRole;
   serviceAccount: k8s.core.v1.ServiceAccount;
+}
+
+export interface LeadCursorKeyringDeliveryResources {
   secretStore: k8s.apiextensions.CustomResource;
   externalSecret: k8s.apiextensions.CustomResource;
 }
 
-export function deployLeadCursorKeyring(
+function protectedVaultOptions(
+  provider: vault.Provider,
+  dependsOn: pulumi.Resource[] = [],
+): pulumi.CustomResourceOptions {
+  return {
+    provider,
+    dependsOn,
+    ...LEAD_CURSOR_BOOTSTRAP_LIFECYCLE,
+  };
+}
+
+export function deployLeadCursorKeyringBootstrap(
   provider: k8s.Provider,
   cfg: Settings,
-  dependencies: LeadCursorKeyringDependencies,
-): LeadCursorKeyringResources {
+): LeadCursorKeyringBootstrapResources {
+  if (!cfg.leadCursorVault) {
+    throw new Error('Lead cursor keyring bootstrap requires trusted Vault configuration.');
+  }
+  const vaultProvider = new vault.Provider(
+    'lead-cursor-vault',
+    buildLeadCursorVaultProviderArgs(cfg.leadCursorVault),
+  );
   const mount = new vault.Mount(
     'lead-cursor-keyring-mount',
     buildLeadCursorVaultMountArgs(),
+    {
+      provider: vaultProvider,
+      ...LEAD_CURSOR_MOUNT_LIFECYCLE,
+    },
   );
   const policy = new vault.Policy(
     'lead-cursor-keyring-read-policy',
     buildLeadCursorVaultPolicyArgs(),
-    { dependsOn: [mount] },
+    protectedVaultOptions(vaultProvider, [mount]),
   );
   const authRole = new vault.kubernetes.AuthBackendRole(
     'lead-cursor-keyring-auth-role',
     buildLeadCursorVaultAuthRoleArgs(cfg.appNamespace),
-    { dependsOn: [policy] },
+    protectedVaultOptions(vaultProvider, [policy]),
   );
   const serviceAccount = new k8s.core.v1.ServiceAccount(
     'lead-cursor-api-service-account',
     buildLeadCursorServiceAccountArgs(cfg.appNamespace),
-    { provider },
-  );
-  const secretStore = new k8s.apiextensions.CustomResource(
-    'lead-cursor-keyring-secret-store',
-    buildLeadCursorSecretStoreArgs(cfg.appNamespace),
     {
       provider,
-      dependsOn: [dependencies.externalSecrets, authRole, serviceAccount],
+      ...LEAD_CURSOR_BOOTSTRAP_LIFECYCLE,
+    },
+  );
+
+  return { vaultProvider, mount, policy, authRole, serviceAccount };
+}
+
+export function deployLeadCursorKeyringDelivery(
+  provider: k8s.Provider,
+  cfg: Settings,
+  dependencies: LeadCursorKeyringDependencies,
+  bootstrap: LeadCursorKeyringBootstrapResources,
+): LeadCursorKeyringDeliveryResources {
+  if (!cfg.leadCursorVault) {
+    throw new Error('Lead cursor keyring delivery requires trusted Vault configuration.');
+  }
+  if (!cfg.leadCursorBootstrapReceipt) {
+    throw new Error('Lead cursor keyring delivery requires an audited bootstrap receipt.');
+  }
+  assertLeadCursorBootstrapReceipt(cfg.leadCursorBootstrapReceipt);
+  const secretStore = new k8s.apiextensions.CustomResource(
+    'lead-cursor-keyring-secret-store',
+    buildLeadCursorSecretStoreArgs(cfg.appNamespace, cfg.leadCursorVault),
+    {
+      provider,
+      dependsOn: [
+        dependencies.externalSecrets,
+        bootstrap.mount,
+        bootstrap.authRole,
+        bootstrap.serviceAccount,
+      ],
     },
   );
 
@@ -206,5 +322,5 @@ export function deployLeadCursorKeyring(
     { provider, dependsOn: [secretStore] },
   );
 
-  return { mount, policy, authRole, serviceAccount, secretStore, externalSecret };
+  return { secretStore, externalSecret };
 }

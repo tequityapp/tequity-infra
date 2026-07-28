@@ -4,6 +4,27 @@ Running log of what landed and what's next in the platform infra (Pulumi TS: PG/
 observability stack, External Secrets). Newest entry first. The umbrella `tequity-platform/NEXT.md`
 holds the cross-repo platform narrative; this file is infra-scoped.
 
+## 2026-07-27 — Harden cursor keyring transport, lifecycle, and staged rollout
+
+The sensitive review findings on PR #9 are corrected without a live provider
+operation. Both Pulumi and External Secrets now require a reviewed HTTPS Vault
+origin and explicit CA trust references. The KV-v2 mount is protected,
+retain-on-delete, and no-delete-before-replace; bootstrap IAM is protected as
+one boundary. The ExternalSecret uses orphan ownership so delivery rollback
+does not erase its target.
+
+Rollout is now three audited stages: protected mount/IAM bootstrap (or
+non-destructive import), direct operator write with a key-material-free issue
+#5 receipt, and only then SecretStore/API delivery. Config rollback cannot
+silently destroy rotation history; decommission is a separate explicit
+destructive workflow. CI runs the repository-owned deterministic secret policy
+scanner after `npm ci`, with behavioral tests for every signature rule and no
+network installer.
+
+Refs: [infra#5](https://github.com/tequityapp/tequity-infra/issues/5),
+[PR #9](https://github.com/tequityapp/tequity-infra/pull/9),
+[ADR-0001](docs/decisions/0001-api-only-lead-cursor-keyring/README.md).
+
 ## 2026-07-27 — Proposed API-only lead cursor keyring boundary
 
 Infra #5 now declares an isolated Vault KV v2 mount, exact-path read policy, and

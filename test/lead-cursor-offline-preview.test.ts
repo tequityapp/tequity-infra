@@ -1,7 +1,10 @@
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { defaultVersions } from '../src/config';
-import { deployLeadCursorKeyring } from '../src/lead-cursor-keyring';
+import {
+  deployLeadCursorKeyringBootstrap,
+  deployLeadCursorKeyringDelivery,
+} from '../src/lead-cursor-keyring';
 
 interface RegisteredResource {
   type: string;
@@ -29,7 +32,7 @@ pulumi.runtime.setMocks(
 );
 
 describe('lead cursor keyring offline Pulumi preview', () => {
-  it('registers references and IAM metadata without a plaintext Secret or stack output', async () => {
+  it('separates protected bootstrap from secret delivery without plaintext inputs', async () => {
     const provider = new k8s.Provider('offline-kubernetes', {
       context: 'offline-preview',
     });
@@ -42,33 +45,60 @@ describe('lead cursor keyring offline Pulumi preview', () => {
       },
       { provider },
     );
-    const resources = deployLeadCursorKeyring(
+    const trustedVault = {
+      server: 'https://vault.test.invalid:8200',
+      caConfigMapName: 'approved-vault-ca',
+      caConfigMapKey: 'ca.crt',
+      caCertFile: '/approved/trust/vault-ca.pem',
+    };
+    const settings = {
+      environment: 'offline-preview',
+      kubeContext: 'offline-preview',
+      appNamespace: 'tequity',
+      leadCursorKeyringStage: 'bootstrap' as const,
+      leadCursorVault: trustedVault,
+      leadCursorBootstrapReceipt:
+        'https://github.com/tequityapp/tequity-infra/issues/5#issuecomment-123456',
+      versions: defaultVersions,
+    };
+    const bootstrap = deployLeadCursorKeyringBootstrap(
       provider,
-      {
-        environment: 'offline-preview',
-        kubeContext: 'offline-preview',
-        appNamespace: 'tequity',
-        leadCursorKeyringEnabled: true,
-        versions: defaultVersions,
-      },
-      { externalSecrets },
+      settings,
     );
 
     await new Promise<void>((resolve) => {
       pulumi
         .all([
-          resources.mount.urn,
-          resources.policy.urn,
-          resources.authRole.urn,
-          resources.serviceAccount.urn,
-          resources.secretStore.urn,
-          resources.externalSecret.urn,
+          bootstrap.mount.urn,
+          bootstrap.policy.urn,
+          bootstrap.authRole.urn,
+          bootstrap.serviceAccount.urn,
         ])
+        .apply(() => resolve());
+    });
+
+    expect(registeredResources.map(({ type }) => type)).not.toEqual(
+      expect.arrayContaining([
+        'kubernetes:external-secrets.io/v1beta1:SecretStore',
+        'kubernetes:external-secrets.io/v1beta1:ExternalSecret',
+      ]),
+    );
+
+    const delivery = deployLeadCursorKeyringDelivery(
+      provider,
+      settings,
+      { externalSecrets },
+      bootstrap,
+    );
+    await new Promise<void>((resolve) => {
+      pulumi
+        .all([delivery.secretStore.urn, delivery.externalSecret.urn])
         .apply(() => resolve());
     });
 
     expect(registeredResources.map(({ type }) => type)).toEqual(
       expect.arrayContaining([
+        'pulumi:providers:vault',
         'vault:index/mount:Mount',
         'vault:index/policy:Policy',
         'vault:kubernetes/authBackendRole:AuthBackendRole',
@@ -83,6 +113,9 @@ describe('lead cursor keyring offline Pulumi preview', () => {
 
     const preview = JSON.stringify(registeredResources);
     expect(preview).toContain('tequity-api-leads-cursor/data/keyring');
+    expect(preview).toContain('https://vault.test.invalid:8200');
+    expect(preview).not.toContain('http://');
+    expect(preview).not.toMatch(/"skipTlsVerify":true/);
     expect(preview).not.toContain('activeKid');
     expect(preview).not.toMatch(/"keys"\s*:/);
     expect(preview).not.toMatch(/"secret"\s*:/);

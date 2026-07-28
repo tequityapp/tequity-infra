@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc --noEmit",
     "test": "jest",
+    "scan:secrets": "node scripts/secret-scan.cjs",
     "preview:offline": "jest --runInBand test/lead-cursor-offline-preview.test.ts",
     "preview": "pulumi preview",
     "up": "pulumi up"
