@@ -15,6 +15,7 @@ export interface Settings {
   environment: string;
   kubeContext: string;
   appNamespace: string;
+  leadCursorKeyringEnabled: boolean;
   versions: Versions;
 }
 
@@ -36,6 +37,7 @@ export function loadSettings(): Settings {
     environment: cfg.get('environment') ?? 'dev',
     kubeContext: cfg.get('kubeContext') ?? 'kind-tequity',
     appNamespace: cfg.get('appNamespace') ?? 'tequity',
+    leadCursorKeyringEnabled: cfg.getBoolean('leadCursorKeyringEnabled') ?? false,
     versions: { ...defaultVersions, ...(cfg.getObject<Partial<Versions>>('versions') ?? {}) },
   };
 }

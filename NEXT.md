@@ -4,6 +4,29 @@ Running log of what landed and what's next in the platform infra (Pulumi TS: PG/
 observability stack, External Secrets). Newest entry first. The umbrella `tequity-platform/NEXT.md`
 holds the cross-repo platform narrative; this file is infra-scoped.
 
+## 2026-07-27 — Proposed API-only lead cursor keyring boundary
+
+Infra #5 now declares an isolated Vault KV v2 mount, exact-path read policy, and
+Kubernetes-auth role bound only to the `tequity-api` service account. Keeping
+the keyring outside the shared `secret/` mount prevents its broader legacy role
+from becoming an alternate read path. A namespaced SecretStore syncs only
+`LEADS_CURSOR_KEYS_JSON` into `tequity-api-leads-cursor`; UI, worker, the shared
+Secret, Pulumi inputs/state/outputs, previews, and logs never receive the
+keyring bytes.
+
+Rotation adds a new active key while retaining verification keys for at least
+the longest prior cursor TTL, then removes retired keys in a later audited Vault
+version. Emergency removal is explicit and intentionally invalidates issued
+cursors. The IAM decision remains Proposed and held for human security review;
+this change performs no Vault write, provider apply, or live IAM mutation. An
+explicit stack setting gates the resources and remains false for local
+development.
+
+Refs: [infra#5](https://github.com/tequityapp/tequity-infra/issues/5),
+[platform#59](https://github.com/tequityapp/tequity-platform/issues/59),
+[api#155](https://github.com/tequityapp/tequity-api/pull/155),
+[helm#6](https://github.com/tequityapp/tequity-helm/issues/6).
+
 ## 2026-07-27 — Route validation to the labeled self-hosted CI pool
 
 The actionlint and Pulumi validation jobs now target the portable `[self-hosted, ci]` pool adopted
