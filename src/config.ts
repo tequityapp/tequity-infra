@@ -42,6 +42,11 @@ export interface Settings {
   sharedVaultTls?: SharedVaultTlsConnection;
   sharedVaultTlsReceipt?: string;
   versions: Versions;
+  identityProviders?: {
+    googleClientId: string;
+    entraClientId: string;
+    entraIssuerUrl: string;
+  };
 }
 
 // Pinned chart versions; override per stack via Pulumi config `versions`.
@@ -161,8 +166,18 @@ export function loadSettings(): Settings {
     assertSharedVaultTlsReceipt(sharedVaultTlsReceipt);
   }
 
+  const environment = cfg.get('environment') ?? 'dev';
+  const identityProviders =
+    environment === 'nonprod' || environment === 'prod'
+      ? {
+          googleClientId: cfg.require('googleOidcClientId'),
+          entraClientId: cfg.require('entraOidcClientId'),
+          entraIssuerUrl: cfg.require('entraOidcIssuerUrl'),
+        }
+      : undefined;
+
   return {
-    environment: cfg.get('environment') ?? 'dev',
+    environment,
     kubeContext: cfg.get('kubeContext') ?? 'kind-tequity',
     appNamespace: cfg.get('appNamespace') ?? 'tequity',
     leadCursorKeyringStage,
@@ -172,5 +187,6 @@ export function loadSettings(): Settings {
     sharedVaultTls,
     sharedVaultTlsReceipt,
     versions: { ...defaultVersions, ...(cfg.getObject<Partial<Versions>>('versions') ?? {}) },
+    identityProviders,
   };
 }
