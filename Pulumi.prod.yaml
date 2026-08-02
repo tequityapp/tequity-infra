@@ -1,0 +1,5 @@
+environment:
+  - Tequity/tequity/shared
+  - Tequity/tequity/prod
+config:
+  tequity-infra:environment: prod
