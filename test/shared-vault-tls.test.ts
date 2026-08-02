@@ -9,7 +9,7 @@ import {
 import { buildSharedVaultStoreArgs } from '../src/secrets';
 
 const settings: Settings = {
-  environment: 'test',
+  environment: 'nonprod',
   kubeContext: 'test',
   appNamespace: 'tequity',
   leadCursorKeyringStage: 'disabled',

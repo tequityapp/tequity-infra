@@ -35,7 +35,7 @@ describe('shared Vault TLS offline Pulumi preview', () => {
       context: 'offline-preview',
     });
     const settings: Settings = {
-      environment: 'offline-preview',
+      environment: 'nonprod',
       kubeContext: 'offline-preview',
       appNamespace: 'tequity',
       leadCursorKeyringStage: 'disabled',

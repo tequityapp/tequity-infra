@@ -1,0 +1,3 @@
+environment:
+  - tequity/shared
+  - tequity/nonprod

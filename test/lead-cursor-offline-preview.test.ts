@@ -1,6 +1,6 @@
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import { defaultVersions } from '../src/config';
+import { defaultVersions, type Settings } from '../src/config';
 import {
   deployLeadCursorKeyringBootstrap,
   deployLeadCursorKeyringDelivery,
@@ -51,8 +51,8 @@ describe('lead cursor keyring offline Pulumi preview', () => {
       caConfigMapKey: 'ca.crt',
       caCertFile: '/approved/trust/vault-ca.pem',
     };
-    const settings = {
-      environment: 'offline-preview',
+    const settings: Settings = {
+      environment: 'nonprod',
       kubeContext: 'offline-preview',
       appNamespace: 'tequity',
       leadCursorKeyringStage: 'bootstrap' as const,
