@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   pulumi:
@@ -24,10 +25,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          registry-url: https://npm.pkg.github.com
+          scope: '@verjson'
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with:
           version: v3.17.3
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
       - run: npm run scan:secrets
       - run: npm run build
       - run: npm test
