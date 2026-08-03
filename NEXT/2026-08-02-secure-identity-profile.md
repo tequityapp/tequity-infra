@@ -7,4 +7,4 @@
 - Require RS256 and fresh MFA with TOTP first while retaining Google, Entra,
   and additive passkey capabilities.
 - Add credential-free acceptance and fail-closed behavioral tests plus
-  ADR-0004 rollout, audit, rotation, and rollback guards.
+  ADR-0005 rollout, audit, rotation, and rollback guards.

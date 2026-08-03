@@ -1,4 +1,4 @@
-# ADR-0004: Declare the normalized Tequity identity deployment profile
+# ADR-0005: Declare the normalized Tequity identity deployment profile
 
 - Status: Proposed
 - Date: 2026-08-02
