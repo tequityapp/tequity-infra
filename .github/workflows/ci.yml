@@ -3,10 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
-  # Use the trusted base-branch workflow definition. Forks are rejected before
-  # runner assignment; admitted same-repository PRs are checked out explicitly
-  # by immutable head SHA with credentials disabled.
-  pull_request_target:
+  # Run contributor-controlled code only with the unprivileged PR event.
+  # Forks are rejected before persistent self-hosted runner assignment.
+  pull_request:
 
 permissions:
   contents: read
@@ -14,12 +13,11 @@ permissions:
 
 jobs:
   pulumi:
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, ci]
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:

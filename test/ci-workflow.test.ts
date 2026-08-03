@@ -10,6 +10,14 @@ describe('CI package authentication boundary', () => {
     expect(workflow).not.toMatch(/^\s+(contents|packages): write$/m);
   });
 
+  it('never executes pull request head code through pull_request_target', () => {
+    expect(workflow).toMatch(/^\s{2}pull_request:$/m);
+    expect(workflow).not.toMatch(/pull_request_target/);
+    expect(workflow).toContain(
+      "github.event.pull_request.head.repo.full_name == github.repository",
+    );
+  });
+
   it('scopes the automatic token to the private package install step', () => {
     expect(workflow).toContain('registry-url: https://npm.pkg.github.com');
     expect(workflow).toContain("scope: '@verjson'");
