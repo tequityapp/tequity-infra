@@ -66,14 +66,14 @@ describe.each([
 describe.each([
   [
     'nonprod',
-    ['Tequity/tequity/shared', 'Tequity/tequity/nonprod'],
+    ['tequity/shared', 'tequity/nonprod'],
   ],
   [
     'prod',
-    ['Tequity/tequity/shared', 'Tequity/tequity/prod'],
+    ['tequity/shared', 'tequity/prod'],
   ],
 ] as const)('%s stack contract', (environment, expectedRefs) => {
-  it('composes only the fully qualified Tequity ESC environments in order', () => {
+  it('composes only the canonical Tequity ESC environments in order', () => {
     const stack = readFileSync(`Pulumi.${environment}.yaml`, 'utf8');
     const refs = stack
       .split('\n')

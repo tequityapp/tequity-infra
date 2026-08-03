@@ -1,4 +1,4 @@
-# ADR-0003: Manage Tequity upload storage as a separable Spaces component
+# ADR-0004: Manage Tequity upload storage as a separable Spaces component
 
 - Status: Proposed
 - Date: 2026-08-02
@@ -27,9 +27,9 @@ Its canonical endpoint is
 `https://tequity.nyc3.digitaloceanspaces.com`.
 
 The fully qualified stacks are `Tequity/tequity-infra/nonprod` and
-`Tequity/tequity-infra/prod`. Each composes
-`Tequity/tequity/shared` first and its environment-specific ESC environment
-second. ESC may inject environment-specific data-plane credentials at runtime,
+`Tequity/tequity-infra/prod`. Their stack files compose
+`tequity/shared` first and the matching `tequity/nonprod` or `tequity/prod`
+ESC environment second. ESC may inject environment-specific data-plane credentials at runtime,
 but secret values are never Pulumi inputs, outputs, source, tests, or receipts.
 
 Credential-free compilation, mocks, and policy tests remain separate from

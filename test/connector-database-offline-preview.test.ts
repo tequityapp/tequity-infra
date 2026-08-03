@@ -67,7 +67,7 @@ describe('connector database offline Pulumi preview', () => {
     const connector = deployConnectorDatabase(
       provider,
       {
-        environment: 'offline-preview',
+        environment: 'nonprod',
         kubeContext: 'offline-preview',
         appNamespace: 'tequity',
         leadCursorKeyringStage: 'disabled',

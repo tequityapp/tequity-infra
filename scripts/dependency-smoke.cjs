@@ -26,8 +26,8 @@ for (const entry of bracePaths) {
   const metadata = lock.packages[entry];
   assert.equal(
     metadata.version,
-    '5.0.8',
-    `${entry} must resolve outside GHSA-mh99-v99m-4gvg`,
+    '5.0.9',
+    `${entry} must resolve outside GHSA-mh99-v99m-4gvg and GHSA-rgw5-rvv9-x895`,
   );
 }
 

@@ -3,9 +3,23 @@ import {
   assertSharedVaultTlsConnection,
   assertSharedVaultTlsReceipt,
   defaultVersions,
+  parseCloudEnvironment,
   parseLeadCursorKeyringStage,
   parseSharedVaultTlsStage,
 } from '../src/config';
+
+describe('cloud environment', () => {
+  it.each(['nonprod', 'prod'] as const)('accepts the %s environment', (environment) => {
+    expect(parseCloudEnvironment(environment)).toBe(environment);
+  });
+
+  it.each(['', 'dev', 'local', 'production'])(
+    'rejects unsupported environment %p',
+    (environment) => {
+      expect(() => parseCloudEnvironment(environment)).toThrow(/cloud environment/i);
+    },
+  );
+});
 
 describe('pinned chart versions', () => {
   it('pins every dependency to an explicit version (no floating tags)', () => {

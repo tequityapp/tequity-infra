@@ -1,8 +1,8 @@
 # tequity-infra
 
-Pulumi (TypeScript) in-cluster platform for Tequity. Cloud-agnostic: it targets
-whatever kube context is configured (kind locally, GKE optionally) and deploys,
-in order:
+Pulumi (TypeScript) in-cluster platform for Tequity. It manages exactly two
+cloud environments, `nonprod` and `prod`, and targets the Kubernetes context
+configured for the selected cloud stack. It deploys, in order:
 
 1. **Policy** — Kyverno + restricted Pod Security on the app namespace.
 2. **Dependencies** — Postgres, Redis, optional shared Vault, Temporal.
@@ -12,6 +12,59 @@ in order:
 6. **Lead cursor keyring** — API-only Vault IAM + a dedicated ExternalSecret.
 
 All chart versions are pinned in `src/config.ts` (overridable per stack).
+
+## Environment operating model
+
+The Pulumi Cloud stacks are:
+
+- `tequity/tequity-infra/nonprod`
+- `tequity/tequity-infra/prod`
+
+The Pulumi ESC environments are `tequity/shared`, `tequity/nonprod`, and
+`tequity/prod`. Each cloud stack imports `tequity/shared` first and its matching
+environment second, so environment-specific values override shared defaults.
+ESC supplies cloud configuration and secrets to Pulumi deployments; it does
+not create, read, or manage developer `.env` files.
+
+There is no local Pulumi stack. From the platform repository root, local
+infrastructure starts with:
+
+```bash
+docker compose up
+```
+
+Docker Compose owns disposable developer dependencies and local verification.
+MinIO is the local S3-compatible object-storage implementation. Its credentials
+remain developer-oriented and disposable in local environment files or Compose
+defaults. Starting Compose must not require Pulumi Cloud or ESC authentication.
+An optional, explicit secret-export helper may be added later, but cannot become
+a prerequisite for local startup.
+
+The `nonprod` stack owns cloud integration and deployment testing. It defaults
+to dedicated stateful resources, credentials, namespaces, and explicit
+environment-qualified names. A foundational resource may be shared only after
+its isolation, access-control, quota, lifecycle, and failure-domain behavior
+are documented and reviewed. Convenience or cost alone is not evidence that a
+stateful resource is safe to share.
+
+The `prod` stack owns production resources. Before its first update, inventory
+the live environment, identify authoritative resource IDs and settings, and
+import existing resources into `tequity/tequity-infra/prod`. This includes the
+current DigitalOcean Spaces bucket. Refresh and preview the imported state, and
+resolve every replacement or deletion before allowing an update. Do not create
+or rename production resources from inferred configuration.
+
+Promote reviewed code, not state:
+
+1. Preview and apply the reviewed revision to `nonprod`.
+2. Run integration probes against its deployed endpoints and stateful services.
+3. Select `prod` and run a separate preview with the production ESC composition.
+4. Review the production diff and apply that same revision after approval.
+
+Never copy Pulumi state, stack exports, or a stack snapshot from `nonprod` to
+`prod`. Each stack has independent state and environment-specific
+configuration. ADR-0003 records the complete boundary, sharing criteria,
+production adoption gate, and rollback expectations.
 
 The legacy shared Vault path is disabled by default, including for local
 development. Its verified-TLS migration and rollback contract is recorded in
@@ -67,9 +120,9 @@ Local development uses Docker Compose and does not depend on Pulumi or ESC.
 Cloud operations use only these fully qualified Pulumi stacks:
 
 - `Tequity/tequity-infra/nonprod`, composing
-  `Tequity/tequity/shared` then `Tequity/tequity/nonprod`
+  `tequity/shared` then `tequity/nonprod`
 - `Tequity/tequity-infra/prod`, composing
-  `Tequity/tequity/shared` then `Tequity/tequity/prod`
+  `tequity/shared` then `tequity/prod`
 
 Nonprod declares the private, versioned `nyc3/tequity-nonprod` bucket with
 exact CORS for `https://dev.tequity.app`. Production is declaration-only:
@@ -92,7 +145,7 @@ Never place Spaces credentials or ESC ciphertext in Pulumi inputs, outputs,
 state, source, tests, logs, or receipts.
 
 Cluster creation is an opt-in provider module under `src/providers/`; the
-in-cluster platform above is identical everywhere.
+in-cluster platform code is shared by both cloud stacks.
 
 ## Connector database bootstrap
 

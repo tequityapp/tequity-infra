@@ -1,5 +1,3 @@
 environment:
-  - Tequity/tequity/shared
-  - Tequity/tequity/nonprod
-config:
-  tequity-infra:environment: nonprod
+  - tequity/shared
+  - tequity/nonprod

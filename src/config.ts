@@ -32,7 +32,7 @@ export interface SharedVaultTlsConnection {
 }
 
 export interface Settings {
-  environment: string;
+  environment: CloudEnvironment;
   kubeContext: string;
   appNamespace: string;
   leadCursorKeyringStage: LeadCursorKeyringStage;
@@ -43,6 +43,9 @@ export interface Settings {
   sharedVaultTlsReceipt?: string;
   versions: Versions;
 }
+
+export const cloudEnvironments = ['nonprod', 'prod'] as const;
+export type CloudEnvironment = (typeof cloudEnvironments)[number];
 
 // Pinned chart versions; override per stack via Pulumi config `versions`.
 export const defaultVersions: Versions = {
@@ -71,6 +74,15 @@ export function parseSharedVaultTlsStage(value: string): SharedVaultTlsStage {
   }
   throw new Error(
     `Invalid shared Vault TLS stage: expected ${sharedVaultTlsStages.join(', ')}`,
+  );
+}
+
+export function parseCloudEnvironment(value: string): CloudEnvironment {
+  if ((cloudEnvironments as readonly string[]).includes(value)) {
+    return value as CloudEnvironment;
+  }
+  throw new Error(
+    `Invalid cloud environment: expected ${cloudEnvironments.join(', ')}`,
   );
 }
 
@@ -162,8 +174,8 @@ export function loadSettings(): Settings {
   }
 
   return {
-    environment: cfg.get('environment') ?? 'dev',
-    kubeContext: cfg.get('kubeContext') ?? 'kind-tequity',
+    environment: parseCloudEnvironment(cfg.require('environment')),
+    kubeContext: cfg.require('kubeContext'),
     appNamespace: cfg.get('appNamespace') ?? 'tequity',
     leadCursorKeyringStage,
     leadCursorVault,
