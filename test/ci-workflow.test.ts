@@ -18,12 +18,17 @@ describe('CI package authentication boundary', () => {
     );
   });
 
-  it('scopes the automatic token to the private package install step', () => {
+  it('scopes a cross-organization token to the private package install step', () => {
     expect(workflow).toContain('registry-url: https://npm.pkg.github.com');
     expect(workflow).toContain("scope: '@verjson'");
+    // github.token alone cannot read another org's packages: @verjson/* lives in
+    // the Verjson org and GITHUB_TOKEN 403s there. The org PAT supplies cross-org
+    // read:packages, with github.token kept as the same-org fallback.
     expect(workflow).toMatch(
-      /- run: npm ci\n        env:\n          NODE_AUTH_TOKEN: \$\{\{ github\.token \}\}/,
+      /- run: npm ci\n        env:\n          NODE_AUTH_TOKEN: \$\{\{ secrets\.NODE_AUTH_TOKEN \|\| github\.token \}\}/,
     );
-    expect(workflow.match(/NODE_AUTH_TOKEN/g)).toHaveLength(1);
+    // Still exactly one step may see it — count env keys, not the expression's
+    // own reference to the secret of the same name.
+    expect(workflow.match(/^\s+NODE_AUTH_TOKEN:/gm)).toHaveLength(1);
   });
 });

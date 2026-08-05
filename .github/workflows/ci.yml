@@ -28,9 +28,13 @@ jobs:
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with:
           version: v3.17.3
+      # GITHUB_TOKEN cannot read another organization's packages, and
+      # @verjson/* lives in the Verjson org — it fails with a 403
+      # "The requested installation does not exist". The org-level PAT carries
+      # cross-org read:packages; github.token stays as the same-org fallback.
       - run: npm ci
         env:
-          NODE_AUTH_TOKEN: ${{ github.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN || github.token }}
       - run: npm run scan:secrets
       - run: npm run build
       - run: npm test
