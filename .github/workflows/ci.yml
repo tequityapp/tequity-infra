@@ -14,7 +14,14 @@ permissions:
 jobs:
   pulumi:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, ci]
+    # This repository is PUBLIC. The self-hosted pool sets
+    # allows_public_repositories=false, so jobs targeting it are never
+    # assigned a runner and queue indefinitely — measured, ~2h with the pool
+    # idle. That setting is deliberate: public-repo PR code must not run on a
+    # persistent shared runner (ADR-0033 routing, ADR-0041 isolation), and the
+    # ephemeral untrusted-PR group is not yet provisioned. GitHub-hosted is the
+    # fail-safe tier, and it is free for public repositories.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
