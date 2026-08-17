@@ -121,16 +121,15 @@ function validateEntraIssuerUrl(value: string): string {
     throw new TypeError('Entra issuer must be an exact tenant-specific HTTPS URL');
   }
 
-  const segments = issuer.pathname.split('/').filter(Boolean);
+  const tenantId = issuer.pathname.split('/')[1] ?? '';
   if (
     issuer.origin !== 'https://login.microsoftonline.com'
     || issuer.username !== ''
     || issuer.password !== ''
     || issuer.search !== ''
     || issuer.hash !== ''
-    || segments.length !== 2
-    || !entraTenantId.test(segments[0] ?? '')
-    || segments[1] !== 'v2.0'
+    || !entraTenantId.test(tenantId)
+    || issuer.pathname !== `/${tenantId}/v2.0`
   ) {
     throw new TypeError('Entra issuer must be an exact tenant-specific HTTPS URL');
   }

@@ -4,11 +4,7 @@ import {
   type VerjsonIdentityDeploymentProfileArgs,
 } from '@verjson/infra';
 import * as pulumi from '@pulumi/pulumi';
-import {
-  identityDeploymentArgs,
-  initialOperatorSubject,
-  platformOperatorPermissions,
-} from '../src/identity';
+import { identityDeploymentArgs } from '../src/identity';
 
 pulumi.runtime.setMocks({
   newResource: (args: pulumi.runtime.MockResourceArgs) => {
@@ -23,6 +19,17 @@ const providers = {
   entraIssuerUrl:
     'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0',
 };
+
+const expectedInitialOperatorSubject =
+  '5fc54cd0-5f6c-41bf-a44c-cd9e0a6439b1';
+const expectedPlatformOperatorPermissions = [
+  'platform:read',
+  'tenant:provision',
+  'tenant:setBilling',
+  'billing:admin',
+  'lead:provenance:read',
+  'lead:provenance:erase',
+] as const;
 
 describe.each([
   [
@@ -70,9 +77,9 @@ describe.each([
         },
         operatorProfiles: [
           {
-            subject: initialOperatorSubject,
+            subject: expectedInitialOperatorSubject,
             permissionProfileId: 'full-platform-operator',
-            permissions: platformOperatorPermissions,
+            permissions: expectedPlatformOperatorPermissions,
           },
         ],
       });
@@ -92,21 +99,23 @@ describe.each([
       ]);
       expect(normalized.operatorProfiles).toEqual([
         {
-          subject: initialOperatorSubject,
+          subject: expectedInitialOperatorSubject,
           permissionProfileId: 'full-platform-operator',
-          permissions: platformOperatorPermissions,
+          permissions: expectedPlatformOperatorPermissions,
         },
       ]);
       expect(normalized.permissionCatalog).toEqual({
         version: 'tequity-authz-v2',
-        permissions: platformOperatorPermissions,
+        permissions: expectedPlatformOperatorPermissions,
         operatorPermissionProfiles: [
           {
             id: 'full-platform-operator',
-            permissions: platformOperatorPermissions,
+            permissions: expectedPlatformOperatorPermissions,
           },
         ],
       });
+      expect(normalized.operatorProfiles[0]?.permissions).toHaveLength(6);
+      expect(normalized.permissionCatalog.permissions).toHaveLength(6);
       expect(JSON.stringify(normalized)).not.toMatch(
         /privateKeyPem|clientSecretRef|credential|ciphertext/i,
       );
@@ -149,13 +158,13 @@ describe('fail-closed identity profile validation', () => {
     ['partial permissions', {
       operatorProfiles: [{
         ...valid.operatorProfiles[0],
-        permissions: platformOperatorPermissions.slice(0, -1),
+        permissions: expectedPlatformOperatorPermissions.slice(0, -1),
       }],
     }],
     ['wildcard permission', {
       operatorProfiles: [{
         ...valid.operatorProfiles[0],
-        permissions: [...platformOperatorPermissions.slice(0, -1), '*'],
+        permissions: [...expectedPlatformOperatorPermissions.slice(0, -1), '*'],
       }],
     }],
     ['wrong ESC order', {
@@ -196,6 +205,9 @@ describe('fail-closed identity profile validation', () => {
   it.each([
     'https://attacker.example/00000000-0000-4000-8000-000000000000/v2.0',
     'https://login.microsoftonline.com/common/v2.0',
+    'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000//v2.0',
+    'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0/',
+    'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000//v2.0//',
   ])('rejects non-tenant Entra issuer %s', (entraIssuerUrl) => {
     expect(() =>
       validateIdentityDeploymentProfile(
