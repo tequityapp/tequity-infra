@@ -80,6 +80,20 @@ describe('tequity infrastructure spec', () => {
       .toThrow(/region/i);
   });
 
+  it.each([
+    ['nonprod', undefined],
+    ['nonprod', ''],
+    ['nonprod', '   '],
+    ['prod', undefined],
+    ['prod', ''],
+    ['prod', '   '],
+  ] as const)('refuses a %s spec with domain %p', (environment, domain) => {
+    expect(() => tequityInfrastructureSpec(environment, {
+      region: 'nyc3',
+      domain: domain as string,
+    })).toThrow(/domain/i);
+  });
+
   it('does not let an unknown environment through', () => {
     expect(() => tequityInfrastructureSpec(
       'staging' as unknown as 'nonprod',

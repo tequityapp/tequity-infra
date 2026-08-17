@@ -23,9 +23,16 @@
   answer; this connects them.
 - No resources are provisioned yet. This lands the dependency and the declaration so the DOKS
   bring-up is a reviewable diff against a validated spec rather than a first draft.
+- Pull-request and trusted-ref validation now use the immutable canonical Node contract at
+  `58a82143d28bc84c163d3fed092d8d9425b91a62`. Its isolated acquisition lane may read only the
+  protected `@verjson/infra` lock entry with the existing package-read secret; the consumer lane
+  receives a bounded exact-attempt npm cache and runs Pulumi/unit/smoke/audit checks only after
+  npm, Git, cloud, and OIDC credentials are scrubbed. No full `node_modules` artifact is handed
+  across the boundary.
 
 Adoption keeps the production dependency tree audit-clean by refreshing compatible patches for
 `brace-expansion@5.0.9` and `js-yaml@4.3.1`, which resolve GHSA-rgw5-rvv9-x895 and
-GHSA-5p4m-2wfm-xmqj. Separately, `nanoid@3.3.16` is pre-existing **dev** debt via
+GHSA-5p4m-2wfm-xmqj; dependency smoke pins both safe versions and canonical CI runs the
+production audit. Separately, `nanoid@3.3.16` is pre-existing **dev** debt via
 `vitest → vite → postcss@8.5.24` — the same advisory `tequity-ui` cleared today by lifting postcss
 to 8.5.26.

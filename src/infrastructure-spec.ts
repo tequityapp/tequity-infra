@@ -48,6 +48,10 @@ export function tequityInfrastructureSpec(
   environment: 'nonprod' | 'prod',
   inputs: TequityEnvironmentInputs,
 ): ResolvedInfrastructureSpecV1 {
+  if (typeof inputs.domain !== 'string' || inputs.domain.trim() === '') {
+    throw new Error('Tequity infrastructure specification: domain is required.');
+  }
+
   const spec: InfrastructureSpecV1 = {
     schemaVersion: 1,
     name: PLATFORM_NAME,

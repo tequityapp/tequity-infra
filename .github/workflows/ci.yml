@@ -1,34 +1,48 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches: [main]
-  # Use the trusted base-branch workflow definition. Forks are rejected before
-  # runner assignment; admitted same-repository PRs are checked out explicitly
-  # by immutable head SHA with credentials disabled.
-  pull_request_target:
+  workflow_dispatch:
 
-permissions:
-  contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  pulumi:
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, ci]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
-        with:
-          version: v3.17.3
-      - run: npm ci
-      - run: npm run scan:secrets
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:vault-render
+  pull-request:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+      statuses: read
+    uses: Verjson/.github/.github/workflows/node-ci.yml@58a82143d28bc84c163d3fed092d8d9425b91a62
+    with:
+      node-version: 24.19.0
+      secretless-pr: true
+      approved-internal-scopes: "@verjson"
+      approved-internal-packages: "@verjson/infra"
+      # The canonical callee binds these values to the protected repository
+      # variable VERJSON_SECRETLESS_PACKAGE_POLICY before tokened acquisition.
+      secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
+    secrets:
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+  trusted-ref:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: read
+      statuses: read
+    uses: Verjson/.github/.github/workflows/node-ci.yml@58a82143d28bc84c163d3fed092d8d9425b91a62
+    with:
+      node-version: 24.19.0
+      secretless-trusted-ref: true
+      approved-internal-scopes: "@verjson"
+      approved-internal-packages: "@verjson/infra"
+      # Keep trusted-ref validation at exact parity with the pull-request lane.
+      # VERJSON_SECRETLESS_PACKAGE_POLICY protects both invocations.
+      secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
+    secrets:
+      NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
