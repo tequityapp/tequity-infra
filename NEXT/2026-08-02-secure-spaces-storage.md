@@ -6,4 +6,4 @@
   environment origin.
 - Compose fully qualified Tequity ESC environments in the required order
   without placing credentials in Pulumi inputs or outputs.
-- Add credential-free contract tests and ADR-0004 rollout guards.
+- Add credential-free contract tests and ADR-0005 rollout guards.

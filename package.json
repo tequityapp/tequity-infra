@@ -9,6 +9,7 @@
     "build": "tsc --noEmit",
     "test": "vitest run --globals",
     "audit:dependencies": "npm audit --audit-level=high",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "test:dependencies": "node scripts/dependency-smoke.cjs",
     "test:vault-render": "scripts/vault-tls-render.sh",
     "scan:secrets": "node scripts/secret-scan.cjs",
@@ -20,7 +21,7 @@
     "@pulumi/kubernetes": "^4.18.0",
     "@pulumi/pulumi": "^3.140.0",
     "@pulumi/vault": "7.9.0",
-    "@verjson/infra": "0.14.1"
+    "@verjson/infra": "^0.18.3"
   },
   "optionalDependencies": {
     "@pulumi/gcp": "^8.10.0"

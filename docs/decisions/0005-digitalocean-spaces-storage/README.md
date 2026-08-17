@@ -1,4 +1,4 @@
-# ADR-0004: Manage Tequity upload storage as a separable Spaces component
+# ADR-0005: Manage Tequity upload storage as a separable Spaces component
 
 - Status: Proposed
 - Date: 2026-08-02
@@ -19,7 +19,7 @@ import-first protected production adoption.
 
 ## Decision
 
-Use `@verjson/infra@0.14.1` without a Tequity wrapper. Nonprod declares
+Use `@verjson/infra@0.18.3` without a Tequity wrapper. Nonprod declares
 `nyc3/tequity-nonprod` for `https://dev.tequity.app`. Production declares the
 existing `nyc3/tequity` bucket for `https://tequity.app`, with bucket import ID
 `tequity`, CORS import ID `nyc3,tequity`, and component-enforced protection.
