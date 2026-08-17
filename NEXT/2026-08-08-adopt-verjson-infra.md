@@ -24,8 +24,8 @@
 - No resources are provisioned yet. This lands the dependency and the declaration so the DOKS
   bring-up is a reviewable diff against a validated spec rather than a first draft.
 
-Adoption is advisory-neutral: the production tree carries the same two high findings before and
-after (`brace-expansion`, `js-yaml`), and `js-yaml` was already reachable through this repo's own
-`@pulumi/pulumi`. Separately, `nanoid@3.3.16` is pre-existing **dev** debt via
+Adoption keeps the production dependency tree audit-clean by refreshing compatible patches for
+`brace-expansion@5.0.9` and `js-yaml@4.3.1`, which resolve GHSA-rgw5-rvv9-x895 and
+GHSA-5p4m-2wfm-xmqj. Separately, `nanoid@3.3.16` is pre-existing **dev** debt via
 `vitest → vite → postcss@8.5.24` — the same advisory `tequity-ui` cleared today by lifting postcss
 to 8.5.26.
