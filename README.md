@@ -114,6 +114,36 @@ npm run preview:offline # Pulumi mocks; no Kubernetes/Vault connection
 npm run preview    # pulumi preview (needs a stack + kube context)
 ```
 
+## Cloud storage stacks
+
+Local development uses Docker Compose and does not depend on Pulumi or ESC.
+Cloud operations use only these fully qualified Pulumi stacks:
+
+- `Tequity/tequity-infra/nonprod`, composing
+  `tequity/shared` then `tequity/nonprod`
+- `Tequity/tequity-infra/prod`, composing
+  `tequity/shared` then `tequity/prod`
+
+Nonprod declares the private, versioned `nyc3/tequity-nonprod` bucket with
+exact CORS for `https://dev.tequity.app`. Production is declaration-only:
+the existing protected `nyc3/tequity` bucket must be imported before any
+preview or apply, and its exact origin is `https://tequity.app`.
+
+Run credential-free validation independently:
+
+```bash
+npm run build
+npm test
+npm run scan:secrets
+```
+
+Do not run cloud preview or apply as part of validation. Nonprod preview and
+apply require an approved deployment window and must stop on any deletion,
+replacement, rename, production, Fandemic, or unrelated change. Production
+import, preview, and apply require a separate explicit security approval.
+Never place Spaces credentials or ESC ciphertext in Pulumi inputs, outputs,
+state, source, tests, logs, or receipts.
+
 Cluster creation is an opt-in provider module under `src/providers/`; the
 in-cluster platform code is shared by both cloud stacks.
 

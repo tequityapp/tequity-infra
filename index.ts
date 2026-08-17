@@ -5,6 +5,11 @@ import { deployDependencies } from './src/dependencies';
 import { deployObservability } from './src/observability';
 import { deploySecrets } from './src/secrets';
 import { deployConnectorDatabase } from './src/connector-database';
+import {
+  deployStorage,
+  managedEnvironments,
+  type ManagedEnvironment,
+} from './src/storage';
 
 // Cloud-agnostic: target whatever kube context is configured. Locally that is a
 // kind cluster; in cloud it is the cluster created by a provider module under
@@ -29,6 +34,12 @@ if (secrets.vaultStore) {
     externalSecrets: secrets.externalSecrets,
     vaultStore: secrets.vaultStore,
   });
+}
+
+if (
+  (managedEnvironments as readonly string[]).includes(cfg.environment)
+) {
+  deployStorage(cfg.environment as ManagedEnvironment);
 }
 
 export const environment = cfg.environment;
