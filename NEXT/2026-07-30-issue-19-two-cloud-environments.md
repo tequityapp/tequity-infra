@@ -1,4 +1,9 @@
-## 2026-07-30 — define the two-cloud-environment operating model
+---
+date: 2026-07-30
+issue: 19
+title: Define the two-cloud-environment operating model
+impact: patch
+---
 
 Retired the local `dev` Pulumi stack and constrained the program to `nonprod`
 and `prod`. ADR-0003 separates disposable Docker Compose and MinIO development

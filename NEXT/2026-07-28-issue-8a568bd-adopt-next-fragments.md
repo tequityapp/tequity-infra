@@ -1,4 +1,9 @@
-## 2026-07-28 — adopt NEXT/ changelog fragments
+---
+date: 2026-07-28
+id: 8a568bd
+title: Adopt NEXT changelog fragments
+impact: patch
+---
 
 Replaced the shared `NEXT.md` running log with one dated fragment per change.
 The previous history is preserved verbatim in `NEXT/0000-archive.md`, and
