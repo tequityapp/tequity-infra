@@ -1,4 +1,9 @@
-## 2026-08-17 — Adopt canonical secretless CI
+---
+date: 2026-08-17
+issue: 27
+title: Adopt canonical secretless CI
+impact: patch
+---
 
 Replace the Node CI job's `pull_request_target` execution with the immutable
 canonical workflow at `58a82143d28bc84c163d3fed092d8d9425b91a62`, and move

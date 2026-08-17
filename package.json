@@ -7,7 +7,7 @@
   "main": "index.ts",
   "scripts": {
     "build": "tsc --noEmit",
-    "test": "vitest run --globals",
+    "test": "vitest run --globals && bash scripts/changelog-contract.test.sh",
     "audit:dependencies": "npm audit --audit-level=high",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "test:dependencies": "node scripts/dependency-smoke.cjs",
