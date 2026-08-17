@@ -1,4 +1,9 @@
-## 2026-07-28 — Least-privilege connector database role + dedicated Secret
+---
+date: 2026-07-28
+issue: 3
+title: Provision a least-privilege connector database role
+impact: patch
+---
 
 Infra now owns the Helm #3 deployment contract without putting credential
 material in Pulumi: Vault KV `secret/tequity/connector-database` is synced by

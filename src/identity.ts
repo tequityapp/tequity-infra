@@ -2,9 +2,9 @@ import {
   VerjsonIdentityDeploymentProfile,
   type VerjsonIdentityDeploymentProfileArgs,
 } from '@verjson/infra';
+import type { CloudEnvironment } from './config';
 
-export const identityEnvironments = ['nonprod', 'prod'] as const;
-export type IdentityEnvironment = (typeof identityEnvironments)[number];
+export type IdentityEnvironment = CloudEnvironment;
 
 export const initialOperatorSubject =
   '5fc54cd0-5f6c-41bf-a44c-cd9e0a6439b1';
@@ -36,6 +36,9 @@ const identityContracts = {
   },
 } as const;
 
+const entraTenantId =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export interface IdentityProviderSettings {
   googleClientId: string;
   entraClientId: string;
@@ -47,6 +50,7 @@ export function identityDeploymentArgs(
   providers: IdentityProviderSettings,
 ): VerjsonIdentityDeploymentProfileArgs {
   const contract = identityContracts[environment];
+  const entraIssuerUrl = validateEntraIssuerUrl(providers.entraIssuerUrl);
   return {
     environment,
     issuerUrl: contract.issuerUrl,
@@ -80,7 +84,7 @@ export function identityDeploymentArgs(
       {
         id: 'entra',
         type: 'entra',
-        issuerUrl: providers.entraIssuerUrl,
+        issuerUrl: entraIssuerUrl,
         clientId: providers.entraClientId,
         clientSecretRef: `vault://identity/${environment}/upstreams/entra#clientSecret`,
       },
@@ -107,6 +111,31 @@ export function identityDeploymentArgs(
       ],
     },
   };
+}
+
+function validateEntraIssuerUrl(value: string): string {
+  let issuer: URL;
+  try {
+    issuer = new URL(value);
+  } catch {
+    throw new TypeError('Entra issuer must be an exact tenant-specific HTTPS URL');
+  }
+
+  const segments = issuer.pathname.split('/').filter(Boolean);
+  if (
+    issuer.origin !== 'https://login.microsoftonline.com'
+    || issuer.username !== ''
+    || issuer.password !== ''
+    || issuer.search !== ''
+    || issuer.hash !== ''
+    || segments.length !== 2
+    || !entraTenantId.test(segments[0] ?? '')
+    || segments[1] !== 'v2.0'
+  ) {
+    throw new TypeError('Entra issuer must be an exact tenant-specific HTTPS URL');
+  }
+
+  return value;
 }
 
 export function deployIdentity(

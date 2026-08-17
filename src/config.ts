@@ -42,7 +42,7 @@ export interface Settings {
   sharedVaultTls?: SharedVaultTlsConnection;
   sharedVaultTlsReceipt?: string;
   versions: Versions;
-  identityProviders?: {
+  identityProviders: {
     googleClientId: string;
     entraClientId: string;
     entraIssuerUrl: string;
@@ -179,14 +179,11 @@ export function loadSettings(): Settings {
   }
 
   const environment = parseCloudEnvironment(cfg.require('environment'));
-  const identityProviders =
-    environment === 'nonprod' || environment === 'prod'
-      ? {
-          googleClientId: cfg.require('googleOidcClientId'),
-          entraClientId: cfg.require('entraOidcClientId'),
-          entraIssuerUrl: cfg.require('entraOidcIssuerUrl'),
-        }
-      : undefined;
+  const identityProviders = {
+    googleClientId: cfg.require('googleOidcClientId'),
+    entraClientId: cfg.require('entraOidcClientId'),
+    entraIssuerUrl: cfg.require('entraOidcIssuerUrl'),
+  };
 
   return {
     environment,

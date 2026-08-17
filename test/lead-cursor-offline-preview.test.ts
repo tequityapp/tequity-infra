@@ -61,6 +61,12 @@ describe('lead cursor keyring offline Pulumi preview', () => {
         'https://github.com/tequityapp/tequity-infra/issues/5#issuecomment-123456',
       sharedVaultTlsStage: 'disabled' as const,
       versions: defaultVersions,
+      identityProviders: {
+        googleClientId: 'tequity-google-client',
+        entraClientId: 'tequity-entra-client',
+        entraIssuerUrl:
+          'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0',
+      },
     };
     const bootstrap = deployLeadCursorKeyringBootstrap(
       provider,

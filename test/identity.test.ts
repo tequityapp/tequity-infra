@@ -76,9 +76,26 @@ describe.each([
           },
         ],
       });
-      expect(normalized.upstreamProviders.map(({ type }) => type)).toEqual([
-        'google',
-        'entra',
+      expect(normalized.upstreamProviders).toEqual([
+        {
+          id: 'google',
+          type: 'google',
+          issuerUrl: 'https://accounts.google.com',
+          clientId: providers.googleClientId,
+        },
+        {
+          id: 'entra',
+          type: 'entra',
+          issuerUrl: providers.entraIssuerUrl,
+          clientId: providers.entraClientId,
+        },
+      ]);
+      expect(normalized.operatorProfiles).toEqual([
+        {
+          subject: initialOperatorSubject,
+          permissionProfileId: 'full-platform-operator',
+          permissions: platformOperatorPermissions,
+        },
       ]);
       expect(normalized.permissionCatalog).toEqual({
         version: 'tequity-authz-v2',
@@ -174,6 +191,17 @@ describe('fail-closed identity profile validation', () => {
         unexpected: true,
       } as VerjsonIdentityDeploymentProfileArgs),
     ).toThrow(/unknown field/i);
+  });
+
+  it.each([
+    'https://attacker.example/00000000-0000-4000-8000-000000000000/v2.0',
+    'https://login.microsoftonline.com/common/v2.0',
+  ])('rejects non-tenant Entra issuer %s', (entraIssuerUrl) => {
+    expect(() =>
+      validateIdentityDeploymentProfile(
+        identityDeploymentArgs('nonprod', { ...providers, entraIssuerUrl }),
+      ),
+    ).toThrow(/Entra issuer/i);
   });
 });
 

@@ -1,4 +1,4 @@
-# ADR-0005: Declare the normalized Tequity identity deployment profile
+# ADR-0006: Declare the normalized Tequity identity deployment profile
 
 - Status: Proposed
 - Date: 2026-08-02
@@ -11,7 +11,7 @@ Raw Google and Entra claims are authentication inputs, not authorization
 claims. Platform authorization is especially sensitive because the initial
 operator receives tenant, billing, and provenance-erasure capabilities.
 
-`@verjson/infra@0.14.4` provides a secret-free deployment profile that validates
+`@verjson/infra@0.18.3` provides a secret-free deployment profile that validates
 canonical HTTPS audiences, immutable subjects, exact permission profiles,
 ordered ESC references, MFA policy, provider registry metadata, and Vault
 references without placing referenced secret values in Pulumi state or output.
@@ -28,10 +28,11 @@ Declare one profile per environment:
   `https://auth.tequity.app/.well-known/jwks.json`.
 
 Both profiles allow RS256 only and resolve Google and Entra identities through
-`tequity-subject-registry` to stable internal subjects. Google/Entra client
-identifiers and the tenant-specific Entra issuer are non-secret Pulumi
-configuration composed from ESC. Client secrets and separate environment
-signing keys are referenced only by `vault://` URIs.
+`tequity-subject-registry` to stable internal subjects. The Entra issuer must be
+the exact Microsoft tenant UUID `/v2.0` endpoint; multi-tenant aliases and other
+hosts fail closed. Google/Entra client identifiers and the tenant-specific Entra
+issuer are non-secret Pulumi configuration composed from ESC. Client secrets
+and separate environment signing keys are referenced only by `vault://` URIs.
 
 The sole initial full operator is immutable subject
 `5fc54cd0-5f6c-41bf-a44c-cd9e0a6439b1`. Its named profile exactly contains:
@@ -74,7 +75,8 @@ between environments.
 
 ## Consequences
 
-Pulumi records only the normalized public contract and opaque Vault reference
-locations. Resource servers have one Tequity trust boundary, while provider
-authentication and signing material remain independently rotatable per
-environment.
+Pulumi records only the normalized public contract. Vault reference locations
+are validated before registration and omitted from component outputs alongside
+the secret values themselves. Resource servers have one Tequity trust boundary,
+while provider authentication and signing material remain independently
+rotatable per environment.

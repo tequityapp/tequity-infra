@@ -5,11 +5,12 @@ import { deployDependencies } from './src/dependencies';
 import { deployObservability } from './src/observability';
 import { deploySecrets } from './src/secrets';
 import { deployConnectorDatabase } from './src/connector-database';
+import { deployIdentity } from './src/identity';
 import {
-  deployIdentity,
-  identityEnvironments,
-  type IdentityEnvironment,
-} from './src/identity';
+  deployStorage,
+  managedEnvironments,
+  type ManagedEnvironment,
+} from './src/storage';
 
 // Cloud-agnostic: target whatever kube context is configured. Locally that is a
 // kind cluster; in cloud it is the cluster created by a provider module under
@@ -36,14 +37,12 @@ if (secrets.vaultStore) {
   });
 }
 
+deployIdentity(cfg.environment, cfg.identityProviders);
+
 if (
-  (identityEnvironments as readonly string[]).includes(cfg.environment) &&
-  cfg.identityProviders
+  (managedEnvironments as readonly string[]).includes(cfg.environment)
 ) {
-  deployIdentity(
-    cfg.environment as IdentityEnvironment,
-    cfg.identityProviders,
-  );
+  deployStorage(cfg.environment as ManagedEnvironment);
 }
 
 export const environment = cfg.environment;

@@ -1,4 +1,9 @@
-# Harden the legacy shared Vault store with verified TLS
+---
+date: 2026-07-28
+issue: 10
+title: Harden the legacy shared Vault store with verified TLS
+impact: patch
+---
 
 - Replace the plaintext shared Vault trust boundary with a protected TLS-only
   Helm release, chart-wide HTTPS service/client settings, trusted-CA probes,

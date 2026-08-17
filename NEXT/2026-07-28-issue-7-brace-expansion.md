@@ -1,4 +1,9 @@
-# Remediate brace-expansion dependency chains
+---
+date: 2026-07-28
+issue: 7
+title: Remediate brace-expansion dependency chains
+impact: patch
+---
 
 - Replace Jest's legacy `glob` chain with Vitest and constrain the Pulumi GCP
   package-json consumer to a compatible release whose `glob`/`minimatch` chain
