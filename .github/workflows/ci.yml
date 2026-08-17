@@ -22,8 +22,6 @@ jobs:
       node-version: 24.19.0
       secretless-pr: true
       approved-internal-scopes: "@verjson"
-      # The current lock has no internal packages. The canonical callee binds
-      # that empty set to VERJSON_SECRETLESS_PACKAGE_POLICY before acquisition.
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
@@ -39,8 +37,6 @@ jobs:
       node-version: 24.19.0
       secretless-trusted-ref: true
       approved-internal-scopes: "@verjson"
-      # Keep the empty package policy and validation plan at PR parity.
-      # VERJSON_SECRETLESS_PACKAGE_POLICY protects both invocations.
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

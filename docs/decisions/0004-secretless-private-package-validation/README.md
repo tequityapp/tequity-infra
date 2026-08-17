@@ -6,8 +6,8 @@ Accepted
 
 ## Context
 
-Issue #27 replaces a `pull_request_target` workflow that checked out and ran
-pull-request-controlled code on self-hosted runners. Issue #17 also records the
+Issue #27 replaces `pull_request_target` workflows that checked out and processed
+pull-request-controlled content on self-hosted runners. Issue #17 also records the
 cross-organization package boundary that becomes active when `@verjson/infra`
 is introduced. A package credential must never share an execution boundary with
 repository lifecycle, build, or test code.
@@ -29,6 +29,10 @@ validation script plan. Pull requests use `pull_request`; trusted pushes and
 explicit dispatches use a separate trusted-ref invocation with the same policy
 and script plan.
 
+Workflow syntax validation uses `pull_request` on a GitHub-hosted runner. Its
+checkout action and actionlint binary are pinned immutably, and it receives no
+repository secrets or self-hosted runner assignment.
+
 ## Consequences
 
 - Pull-request code never receives package credentials or ambient runner npm
@@ -38,5 +42,6 @@ and script plan.
 - Missing authorization, policy mismatch, cache mismatch, or credential scrub
   failure stops validation before consumer code executes.
 - The handoff does not upload a complete `node_modules` artifact.
+- Pull-request workflow syntax validation cannot reach an organization runner.
 - Build, unit, dependency-smoke, secret-scan, offline-preview, Vault-render, and
   production-audit checks run in both event lanes.

@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const workflow = readFileSync(
-  resolve(__dirname, '..', '.github', 'workflows', 'ci.yml'),
-  'utf8',
-);
+const workflowsDirectory = resolve(__dirname, '..', '.github', 'workflows');
+const workflowFiles = readdirSync(workflowsDirectory)
+  .filter((name) => /\.ya?ml$/.test(name))
+  .sort()
+  .map((name) => ({
+    name,
+    content: readFileSync(resolve(workflowsDirectory, name), 'utf8'),
+  }));
+const workflow = workflowFiles.find(({ name }) => name === 'ci.yml')!.content;
 const lockfile = JSON.parse(
   readFileSync(resolve(__dirname, '..', 'package-lock.json'), 'utf8'),
 ) as { packages: Record<string, unknown> };
@@ -33,6 +38,26 @@ function lockedInternalPackages(): string[] {
   return [...names].sort();
 }
 
+describe('repository workflow trust boundaries', () => {
+  it('never runs pull-request-controlled workflow definitions on self-hosted runners', () => {
+    for (const { name, content } of workflowFiles) {
+      expect(content, name).not.toContain('pull_request_target:');
+      if (/^\s*pull_request:\s*$/m.test(content)) {
+        expect(content, name).not.toMatch(/^\s*runs-on:\s*.*self-hosted/m);
+      }
+    }
+  });
+
+  it('pins every external action and reusable workflow to an immutable commit', () => {
+    for (const { name, content } of workflowFiles) {
+      const uses = [...content.matchAll(/^\s*(?:-\s*)?uses:\s*([^\s#]+)\s*(?:#.*)?$/gm)];
+      for (const [, target] of uses) {
+        expect(target, `${name}: ${target}`).toMatch(/^[^@]+@[0-9a-f]{40}$/);
+      }
+    }
+  });
+});
+
 describe('canonical secretless Node CI caller', () => {
   it('uses the immutable shared workflow for PR and trusted-ref validation', () => {
     expect(occurrences(
@@ -50,9 +75,8 @@ describe('canonical secretless Node CI caller', () => {
 
   it('keeps the approved internal package set exactly empty for the current lock', () => {
     expect(lockedInternalPackages()).toEqual([]);
-    expect(occurrences('approved-internal-scopes: "@verjson"')).toBe(2);
+    expect(workflow.match(/^\s+approved-internal-scopes:\s+"@verjson"\s*$/gm)).toHaveLength(2);
     expect(workflow).not.toContain('approved-internal-packages:');
-    expect(occurrences('VERJSON_SECRETLESS_PACKAGE_POLICY')).toBe(2);
   });
 
   it('maps only the package token and keeps all consumer commands in the canonical plan', () => {
