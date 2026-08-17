@@ -28,7 +28,7 @@ export function storageDeploymentArgs(
     allowedOrigins: [contract.uploadOrigin],
     ...(environment === 'prod'
       ? {
-          bucketImportId: 'tequity',
+          bucketImportId: 'nyc3,tequity',
           corsImportId: 'nyc3,tequity',
         }
       : {}),

@@ -22,7 +22,7 @@ import-first protected production adoption.
 Use `@verjson/infra@0.18.3` without a Tequity wrapper. Nonprod declares
 `nyc3/tequity-nonprod` for `https://dev.tequity.app`. Production declares the
 existing `nyc3/tequity` bucket for `https://tequity.app`, with bucket import ID
-`tequity`, CORS import ID `nyc3,tequity`, and component-enforced protection.
+`nyc3,tequity`, CORS import ID `nyc3,tequity`, and component-enforced protection.
 Its canonical endpoint is
 `https://tequity.nyc3.digitaloceanspaces.com`.
 

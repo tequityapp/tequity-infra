@@ -13,3 +13,5 @@ without placing credentials in Pulumi inputs or outputs.
 
 Credential-free contract tests and ADR-0005 preserve rollout, replacement,
 package-authorization, and two-cloud environment safeguards reviewed for PR #16.
+Production registers both bucket and CORS child resources with the provider-required
+`nyc3,tequity` import identity before any protected adoption can proceed.

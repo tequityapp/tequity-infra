@@ -52,9 +52,11 @@ describe.each([
       ]);
       if (environment === 'prod') {
         expect(storageDeploymentArgs(environment)).toMatchObject({
-          bucketImportId: 'tequity',
+          bucketImportId: 'nyc3,tequity',
           corsImportId: 'nyc3,tequity',
         });
+        expect(resources[1]?.id).toBe('nyc3,tequity');
+        expect(resources[2]?.id).toBe('nyc3,tequity');
         expect((bucket as unknown as { __protect: boolean }).__protect).toBe(
           true,
         );
