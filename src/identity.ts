@@ -122,6 +122,8 @@ function validateEntraIssuerUrl(value: string): string {
   }
 
   const tenantId = issuer.pathname.split('/')[1] ?? '';
+  const canonicalIssuerUrl =
+    `https://login.microsoftonline.com/${tenantId.toLowerCase()}/v2.0`;
   if (
     issuer.origin !== 'https://login.microsoftonline.com'
     || issuer.username !== ''
@@ -130,6 +132,7 @@ function validateEntraIssuerUrl(value: string): string {
     || issuer.hash !== ''
     || !entraTenantId.test(tenantId)
     || issuer.pathname !== `/${tenantId}/v2.0`
+    || value !== canonicalIssuerUrl
   ) {
     throw new TypeError('Entra issuer must be an exact tenant-specific HTTPS URL');
   }

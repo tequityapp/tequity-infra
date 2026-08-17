@@ -208,7 +208,15 @@ describe('fail-closed identity profile validation', () => {
     'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000//v2.0',
     'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0/',
     'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000//v2.0//',
-  ])('rejects non-tenant Entra issuer %s', (entraIssuerUrl) => {
+    'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/./v2.0',
+    'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/%2e/v2.0',
+    'https://login.microsoftonline.com\\00000000-0000-4000-8000-000000000000\\v2.0',
+    'https://login.microsoftonline.com:443/00000000-0000-4000-8000-000000000000/v2.0',
+    'https://LOGIN.MICROSOFTONLINE.COM/00000000-0000-4000-8000-000000000000/v2.0',
+    'HTTPS://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0',
+    'https://login%2Emicrosoftonline.com/00000000-0000-4000-8000-000000000000/v2.0',
+    'https://login.microsoftonline.com/ABCDEF12-3456-4ABC-8DEF-ABCDEF123456/v2.0',
+  ])('rejects non-tenant or non-canonical Entra issuer %s', (entraIssuerUrl) => {
     expect(() =>
       validateIdentityDeploymentProfile(
         identityDeploymentArgs('nonprod', { ...providers, entraIssuerUrl }),
