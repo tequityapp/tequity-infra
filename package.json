@@ -9,6 +9,7 @@
     "build": "tsc --noEmit",
     "test": "vitest run --globals",
     "audit:dependencies": "npm audit --audit-level=high",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "test:dependencies": "node scripts/dependency-smoke.cjs",
     "test:vault-render": "scripts/vault-tls-render.sh",
     "scan:secrets": "node scripts/secret-scan.cjs",
