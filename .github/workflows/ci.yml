@@ -23,8 +23,6 @@ jobs:
       secretless-pr: true
       approved-internal-scopes: "@verjson"
       approved-internal-packages: "@verjson/infra"
-      # The canonical callee binds these values to the protected repository
-      # variable VERJSON_SECRETLESS_PACKAGE_POLICY before tokened acquisition.
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
@@ -41,8 +39,6 @@ jobs:
       secretless-trusted-ref: true
       approved-internal-scopes: "@verjson"
       approved-internal-packages: "@verjson/infra"
-      # Keep trusted-ref validation at exact parity with the pull-request lane.
-      # VERJSON_SECRETLESS_PACKAGE_POLICY protects both invocations.
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

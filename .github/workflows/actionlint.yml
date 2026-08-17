@@ -1,9 +1,7 @@
 name: actionlint
 
 on:
-  # Base-branch workflow definition: a fork cannot edit the admission guard
-  # that keeps its content off organization runners.
-  pull_request_target:
+  pull_request:
     paths:
       - '.github/workflows/**'
       - '.github/actionlint.yaml'
@@ -18,18 +16,14 @@ permissions:
 
 jobs:
   actionlint:
-    # Fork-authored workflow content is not admitted to organization runners.
-    # A safe external-PR execution boundary is tracked at platform#63.
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, ci]
+    runs-on: ubuntu-24.04
     env:
       ACTIONLINT_VERSION: 1.7.7
       # From actionlint_1.7.7_checksums.txt on the upstream GitHub Release.
       ACTIONLINT_SHA256: '023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install actionlint (pinned release binary)
         run: |
