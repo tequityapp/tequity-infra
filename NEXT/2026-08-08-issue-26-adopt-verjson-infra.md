@@ -1,4 +1,9 @@
-## 2026-08-08 — Adopt @verjson/infra and declare the infrastructure spec
+---
+date: 2026-08-08
+issue: 26
+title: Adopt @verjson/infra and declare the infrastructure spec
+impact: patch
+---
 
 - Add `@verjson/infra@^0.18.3`, the org's reusable Pulumi ComponentResources, and declare
   tequity's per-environment requirements as an `InfrastructureSpecV1` validated by the module's
