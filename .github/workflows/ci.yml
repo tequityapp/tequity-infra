@@ -22,6 +22,7 @@ jobs:
       node-version: 24.19.0
       secretless-pr: true
       approved-internal-scopes: "@verjson"
+      approved-internal-packages: "@verjson/infra"
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
@@ -37,6 +38,7 @@ jobs:
       node-version: 24.19.0
       secretless-trusted-ref: true
       approved-internal-scopes: "@verjson"
+      approved-internal-packages: "@verjson/infra"
       secretless-ci-script-plan: '["scan:secrets","build","test","test:dependencies","test:vault-render","preview:offline","audit:production"]'
     secrets:
       NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

@@ -73,10 +73,11 @@ describe('canonical secretless Node CI caller', () => {
     expect(workflow).not.toContain('pull_request_target:');
   });
 
-  it('keeps the approved internal package set exactly empty for the current lock', () => {
-    expect(lockedInternalPackages()).toEqual([]);
+  it('allows exactly the locked internal package under protected policy', () => {
+    expect(lockedInternalPackages()).toEqual(['@verjson/infra']);
     expect(workflow.match(/^\s+approved-internal-scopes:\s+"@verjson"\s*$/gm)).toHaveLength(2);
-    expect(workflow).not.toContain('approved-internal-packages:');
+    expect(workflow.match(/^\s+approved-internal-packages:\s+"@verjson\/infra"\s*$/gm))
+      .toHaveLength(2);
   });
 
   it('maps only the package token and keeps all consumer commands in the canonical plan', () => {

@@ -7,19 +7,19 @@ Accepted
 ## Context
 
 Issue #27 replaces `pull_request_target` workflows that checked out and processed
-pull-request-controlled content on self-hosted runners. Issue #17 also records the
-cross-organization package boundary that becomes active when `@verjson/infra`
-is introduced. A package credential must never share an execution boundary with
-repository lifecycle, build, or test code.
+pull-request-controlled content on self-hosted runners. Issues #17 and #26 activate
+the cross-organization package boundary by introducing `@verjson/infra`. A package
+credential must never share an execution boundary with repository lifecycle, build,
+or test code.
 
 ## Decision
 
 Use the canonical reusable Node workflow from `Verjson/.github`, pinned at
 `58a82143d28bc84c163d3fed092d8d9425b91a62`, for both pull-request and trusted-ref
 validation. The caller grants package-read permission and maps only the existing
-organization `NODE_AUTH_TOKEN`. The current protected repository policy permits
-the `@verjson` scope and no packages because the main lock has no internal
-dependencies. Adding one requires an explicit caller and protected-policy change.
+organization `NODE_AUTH_TOKEN`. The protected repository policy permits the
+`@verjson` scope and exact `@verjson/infra` package. Adding another internal package
+requires an explicit caller and protected-policy change.
 
 The canonical acquisition lane validates the lock and protected policy before
 using the token. It transfers only a bounded, identity-bound npm content cache.
@@ -37,8 +37,8 @@ repository secrets or self-hosted runner assignment.
 
 - Pull-request code never receives package credentials or ambient runner npm
   configuration.
-- The empty current allowlist makes tokened package network requests unnecessary
-  and fails closed if an internal dependency appears without review.
+- The exact allowlist permits only the locked `@verjson/infra` package and fails
+  closed if another internal dependency appears without review.
 - Missing authorization, policy mismatch, cache mismatch, or credential scrub
   failure stops validation before consumer code executes.
 - The handoff does not upload a complete `node_modules` artifact.
