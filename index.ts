@@ -5,6 +5,7 @@ import { deployDependencies } from './src/dependencies';
 import { deployObservability } from './src/observability';
 import { deploySecrets } from './src/secrets';
 import { deployConnectorDatabase } from './src/connector-database';
+import { deployIdentity } from './src/identity';
 import {
   deployStorage,
   managedEnvironments,
@@ -35,6 +36,8 @@ if (secrets.vaultStore) {
     vaultStore: secrets.vaultStore,
   });
 }
+
+deployIdentity(cfg.environment, cfg.identityProviders);
 
 if (
   (managedEnvironments as readonly string[]).includes(cfg.environment)

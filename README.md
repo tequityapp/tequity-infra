@@ -114,6 +114,29 @@ npm run preview:offline # Pulumi mocks; no Kubernetes/Vault connection
 npm run preview    # pulumi preview (needs a stack + kube context)
 ```
 
+## Identity deployment profile
+
+Nonprod and production declare separate normalized Tequity identity profiles.
+Each trusts only its exact Tequity issuer, API audience, and JWKS URL; allows
+RS256 only; and references an environment-specific Vault signing key without
+placing private material in Pulumi inputs, outputs, previews, or state.
+
+The initial operator is selected only by immutable Tequity subject. All six
+platform permissions require `acr=mfa` with `auth_time` no older than 300
+seconds. Google and Entra are upstream authentication providers whose
+identities resolve through the stable Tequity subject registry. Resource
+servers never authorize raw provider claims.
+
+For `nonprod` and `prod`, ESC must supply the non-secret
+`googleOidcClientId`, `entraOidcClientId`, and tenant-specific
+`entraOidcIssuerUrl` Pulumi configuration. Provider secrets and signing keys
+remain behind exact environment-specific Vault references declared in
+`src/identity.ts`.
+
+Local Docker Compose does not depend on Pulumi or ESC. Cloud preview and apply
+remain separate from credential-free validation. Production apply requires a
+separate explicit human security approval.
+
 ## Cloud storage stacks
 
 Local development uses Docker Compose and does not depend on Pulumi or ESC.

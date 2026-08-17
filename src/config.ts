@@ -42,6 +42,11 @@ export interface Settings {
   sharedVaultTls?: SharedVaultTlsConnection;
   sharedVaultTlsReceipt?: string;
   versions: Versions;
+  identityProviders: {
+    googleClientId: string;
+    entraClientId: string;
+    entraIssuerUrl: string;
+  };
 }
 
 export const cloudEnvironments = ['nonprod', 'prod'] as const;
@@ -173,8 +178,15 @@ export function loadSettings(): Settings {
     assertSharedVaultTlsReceipt(sharedVaultTlsReceipt);
   }
 
+  const environment = parseCloudEnvironment(cfg.require('environment'));
+  const identityProviders = {
+    googleClientId: cfg.require('googleOidcClientId'),
+    entraClientId: cfg.require('entraOidcClientId'),
+    entraIssuerUrl: cfg.require('entraOidcIssuerUrl'),
+  };
+
   return {
-    environment: parseCloudEnvironment(cfg.require('environment')),
+    environment,
     kubeContext: cfg.require('kubeContext'),
     appNamespace: cfg.get('appNamespace') ?? 'tequity',
     leadCursorKeyringStage,
@@ -184,5 +196,6 @@ export function loadSettings(): Settings {
     sharedVaultTls,
     sharedVaultTlsReceipt,
     versions: { ...defaultVersions, ...(cfg.getObject<Partial<Versions>>('versions') ?? {}) },
+    identityProviders,
   };
 }

@@ -50,6 +50,12 @@ describe('shared Vault TLS offline Pulumi preview', () => {
       sharedVaultTlsReceipt:
         'https://github.com/tequityapp/tequity-infra/issues/10#issuecomment-123456',
       versions: defaultVersions,
+      identityProviders: {
+        googleClientId: 'tequity-google-client',
+        entraClientId: 'tequity-entra-client',
+        entraIssuerUrl:
+          'https://login.microsoftonline.com/00000000-0000-4000-8000-000000000000/v2.0',
+      },
     };
 
     const dependencies = deployDependencies(provider, settings);
