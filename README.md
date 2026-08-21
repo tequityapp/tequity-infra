@@ -227,6 +227,50 @@ state, source, tests, logs, or receipts.
 Cluster creation is an opt-in provider module under `src/providers/`; the
 in-cluster platform code is shared by both cloud stacks.
 
+### Upload CORS evidence
+
+tequity-infra#13 asks not for a CORS configuration but for **evidence** that the
+production apply does what it claims. That evidence has two halves, and only one of
+them can be produced without a credential.
+
+**The offline half — `npm run preview:offline`, no credential.**
+`test/storage-offline-preview.test.ts` runs the production stack through Pulumi's mock
+runtime and asserts what a preview would show: both DigitalOcean resources register with
+the concrete id `nyc3,tequity`, which is an **import** — Pulumi adopts the existing
+authoritative bucket rather than planning a create — the bucket keeps
+`acl: private`, `forceDestroy: false`, and versioning; the component is `protect`ed; the
+CORS rule is exactly `PUT` from exactly `https://tequity.app` with exactly
+`Content-Type` and `If-None-Match`; and **no third resource of any kind is registered**,
+so the plan cannot touch anything unrelated. No wildcard appears anywhere in it.
+
+**The live half — `scripts/spaces-cors-probe.sh`, credentialed, run once by an operator.**
+It answers what an offline preview cannot: whether the endpoint actually behaves that way.
+
+```bash
+SPACES_KEY=... SPACES_SECRET=... bash scripts/spaces-cors-probe.sh
+```
+
+It proves four things and deletes what it created, including on an early failure:
+
+1. a browser preflight from `https://tequity.app` is answered for `PUT` with
+   `Content-Type` and `If-None-Match`, echoing that exact origin and not a wildcard;
+2. a preflight from an unapproved origin is not answered;
+3. a create-only conditional `PUT` (`If-None-Match: *`) succeeds on a fresh key;
+4. the same `PUT` repeated returns `412` and a **signed** read-back shows the stored
+   bytes unchanged — an unsigned read against a private bucket returns a `403` body,
+   which would report a false change.
+
+It is run by no workflow and by CI at no point, because it writes to the production
+bucket. Credentials are read from the environment and never echoed; the transcript
+carries request and response metadata only, and is what gets attached to the issue.
+
+The probe gets exactly one attempt with a production credential, so its request signing
+is pinned by golden vectors in `test/spaces-cors-probe.test.ts`. All four request shapes
+were cross-checked against an independent SigV4 implementation (botocore 1.34.46) using
+the public AWS example credentials, which authorize nothing; a change that alters the
+canonical request breaks those vectors rather than surfacing as a misleading `403`
+during the one credentialed session.
+
 ## Connector database bootstrap
 
 The cloud-storage connector uses the dedicated PostgreSQL role
