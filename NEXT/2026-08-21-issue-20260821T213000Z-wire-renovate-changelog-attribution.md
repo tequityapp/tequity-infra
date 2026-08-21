@@ -18,3 +18,14 @@ and a `renovate/` branch prefix. The fragment is written by a short-lived App
 installation token rather than `GITHUB_TOKEN`, which the contract test forbids
 here precisely because a caller that could write with the job token would be a
 write primitive reachable from a pull request.
+
+This repository's `never runs pull-request-controlled workflow definitions on
+self-hosted runners` rule banned the `pull_request_target` trigger outright. That
+was a proxy for the property the rule is named after, and a strictly wider one:
+`pull_request_target` runs the *base* repository's definition, not the pull
+request's. The rule now checks the danger directly — privileged context combined
+with a checkout of pull-request code, a write grant, a `steps:` block, a
+PR-steerable runner, `secrets: inherit`, or a job-token reference — and allows
+only a thin delegation to an immutably pinned `Verjson/.github` reusable
+workflow. Eight negative shapes are asserted, and the rule was mutation-proved
+against the real file in three directions.
