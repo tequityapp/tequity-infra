@@ -5,6 +5,7 @@ import {
 } from '@verjson/infra';
 import * as pulumi from '@pulumi/pulumi';
 import { identityDeploymentArgs } from '../src/identity';
+import { securityControlPopulationId } from '../src/platform-permissions';
 
 pulumi.runtime.setMocks({
   newResource: (args: pulumi.runtime.MockResourceArgs) => {
@@ -78,7 +79,7 @@ describe.each([
         operatorProfiles: [
           {
             subject: expectedInitialOperatorSubject,
-            permissionProfileId: 'full-platform-operator',
+            permissionProfileId: securityControlPopulationId,
             permissions: expectedPlatformOperatorPermissions,
           },
         ],
@@ -100,20 +101,41 @@ describe.each([
       expect(normalized.operatorProfiles).toEqual([
         {
           subject: expectedInitialOperatorSubject,
-          permissionProfileId: 'full-platform-operator',
+          permissionProfileId: securityControlPopulationId,
           permissions: expectedPlatformOperatorPermissions,
         },
       ]);
+      // The catalog now publishes the three operator populations, and only the
+      // designated security-control one carries lead provenance (tequity-infra#14).
       expect(normalized.permissionCatalog).toEqual({
         version: 'tequity-authz-v2',
         permissions: expectedPlatformOperatorPermissions,
         operatorPermissionProfiles: [
           {
-            id: 'full-platform-operator',
+            id: 'platform-read-only-operator',
+            permissions: ['platform:read'],
+          },
+          {
+            id: 'platform-operator',
+            permissions: [
+              'platform:read',
+              'tenant:provision',
+              'tenant:setBilling',
+              'billing:admin',
+            ],
+          },
+          {
+            id: securityControlPopulationId,
             permissions: expectedPlatformOperatorPermissions,
           },
         ],
       });
+      for (const profile of normalized.permissionCatalog
+        .operatorPermissionProfiles) {
+        if (profile.id === securityControlPopulationId) continue;
+        expect(profile.permissions).not.toContain('lead:provenance:read');
+        expect(profile.permissions).not.toContain('lead:provenance:erase');
+      }
       expect(normalized.operatorProfiles[0]?.permissions).toHaveLength(6);
       expect(normalized.permissionCatalog.permissions).toHaveLength(6);
       expect(JSON.stringify(normalized)).not.toMatch(
@@ -153,6 +175,18 @@ describe('fail-closed identity profile validation', () => {
       operatorProfiles: [{
         ...valid.operatorProfiles[0],
         subject: 'operator@example.com',
+      }],
+    }],
+    ['an operator assigned to an undeclared population', {
+      operatorProfiles: [{
+        ...valid.operatorProfiles[0],
+        permissionProfileId: 'tenant-owner',
+      }],
+    }],
+    ['provenance granted to the read-only population', {
+      operatorProfiles: [{
+        ...valid.operatorProfiles[0],
+        permissionProfileId: 'platform-read-only-operator',
       }],
     }],
     ['partial permissions', {

@@ -3,19 +3,18 @@ import {
   type VerjsonIdentityDeploymentProfileArgs,
 } from '@verjson/infra';
 import type { CloudEnvironment } from './config';
+import {
+  assertPlatformClaimAllowlist,
+  platformClaimAllowlist,
+  platformPermissions,
+  securityControlPopulationId,
+} from './platform-permissions';
 
 export type IdentityEnvironment = CloudEnvironment;
 
 export const initialOperatorSubject =
   '5fc54cd0-5f6c-41bf-a44c-cd9e0a6439b1';
-export const platformOperatorPermissions = [
-  'platform:read',
-  'tenant:provision',
-  'tenant:setBilling',
-  'billing:admin',
-  'lead:provenance:read',
-  'lead:provenance:erase',
-] as const;
+export const platformOperatorPermissions = platformPermissions;
 
 const identityContracts = {
   nonprod: {
@@ -51,6 +50,22 @@ export function identityDeploymentArgs(
 ): VerjsonIdentityDeploymentProfileArgs {
   const contract = identityContracts[environment];
   const entraIssuerUrl = validateEntraIssuerUrl(providers.entraIssuerUrl);
+  const allowlist = assertPlatformClaimAllowlist(
+    platformClaimAllowlist(environment),
+  );
+  if (allowlist.issuer !== contract.issuerUrl) {
+    throw new TypeError(
+      'Platform claim allowlist issuer must be this environment\'s own issuer',
+    );
+  }
+  const securityControlPopulation = allowlist.populations.find(
+    (population) => population.id === securityControlPopulationId,
+  );
+  if (!securityControlPopulation) {
+    throw new TypeError(
+      `Allowlist declares no ${securityControlPopulationId} population`,
+    );
+  }
   return {
     environment,
     issuerUrl: contract.issuerUrl,
@@ -69,8 +84,8 @@ export function identityDeploymentArgs(
       rotationOverlapSeconds: 600,
     },
     mfa: {
-      acr: 'mfa',
-      maxAgeSeconds: 300,
+      acr: allowlist.requiredAcr,
+      maxAgeSeconds: allowlist.maxAuthAgeSeconds,
       secondFactors: ['totp', 'passkey'],
     },
     upstreamProviders: [
@@ -96,19 +111,23 @@ export function identityDeploymentArgs(
     operatorProfiles: [
       {
         subject: initialOperatorSubject,
-        permissionProfileId: 'full-platform-operator',
-        permissions: [...platformOperatorPermissions],
+        permissionProfileId: securityControlPopulationId,
+        permissions: [...securityControlPopulation.permissions],
       },
     ],
+    // The catalog is DERIVED from the allowlist rather than restated, so a
+    // population added or widened there cannot reach a deployment without passing
+    // the provenance boundary assertPlatformClaimAllowlist enforces. The catalog
+    // version is unchanged: the emitted permission vocabulary is the same six
+    // exact permissions, and what this adds is a minting-side constraint on who
+    // may hold two of them, not a new claim for a consumer to understand.
     permissionCatalog: {
       version: 'tequity-authz-v2',
-      permissions: [...platformOperatorPermissions],
-      operatorPermissionProfiles: [
-        {
-          id: 'full-platform-operator',
-          permissions: [...platformOperatorPermissions],
-        },
-      ],
+      permissions: [...platformPermissions],
+      operatorPermissionProfiles: allowlist.populations.map((population) => ({
+        id: population.id,
+        permissions: [...population.permissions],
+      })),
     },
   };
 }
