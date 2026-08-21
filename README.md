@@ -137,6 +137,63 @@ Local Docker Compose does not depend on Pulumi or ESC. Cloud preview and apply
 remain separate from credential-free validation. Production apply requires a
 separate explicit human security approval.
 
+### Platform exact-permission claim allowlist
+
+`src/platform-permissions.ts` is the authoritative allowlist for platform-only exact
+permission claims, and the identity profile is **derived** from it — a population added
+or widened there cannot reach a deployment without passing its assertions
+(tequity-docs ADR-0055).
+
+Three operator populations exist. Only one, `security-control-operator`, may hold
+`lead:provenance:read` and `lead:provenance:erase`; `platform-operator` and
+`platform-read-only-operator` may not, and construction fails if either is widened to
+include them. A population that is not declared — a tenant role, a tenant owner, an
+unrecognized id — resolves to no permissions at all rather than to a default.
+
+Only this environment's own Tequity issuer may mint a platform claim. An upstream
+federated assertion (Google, Entra) is exchanged at that issuer first and never carries
+platform claims directly; the other environment's issuer, a lookalike host, and a
+wildcard origin all resolve to nothing. An issuer is accepted only as an exact canonical
+https origin: a trailing slash, an explicit port, an uppercase host, a percent-encoded
+label, or a path is rejected rather than normalized, so any shape the parser cannot fully
+model fails closed.
+
+Provenance additionally requires `acr=mfa` with `auth_time` no older than 300 seconds.
+A session that fails step-up keeps the rest of its profile and loses only provenance:
+step-up gates the two provenance permissions, not platform access as a whole.
+
+**Rotation.** The allowlist is code and rotates through a reviewed pull request, never
+through a console. Adding an operator to the security-control population is a change to
+`operatorProfiles` in `src/identity.ts`; adding a population is a change to
+`src/platform-permissions.ts`. Both are covered by
+`test/platform-permission-allowlist.test.ts`, which fails if a non-designated population
+gains provenance. Signing keys rotate independently through the Vault references above;
+neither rotation exposes a token, because no token or credential is an input to, or an
+output of, this module.
+
+**Audit.** `permissionCatalog.operatorPermissionProfiles` publishes the populations and
+their exact permissions in every rendered profile, so a diff of a preview shows precisely
+which population changed. `expect(JSON.stringify(allowlist)).not.toMatch(...)` holds the
+structure free of secret-shaped material, so a preview is safe to attach to a review.
+
+**Rollback.** Reverting the pull request restores the previous allowlist; there is no
+out-of-band state to unwind, because nothing here is provisioned imperatively. A
+provenance grant made in error is revoked by reverting the operator profile and
+re-applying, and the operator's next token cannot carry the permission once the profile
+no longer names the population.
+
+**Deployment verification, without exposing tokens.** Run `npm test` and
+`npm run preview:offline` — neither needs a credential. Against a stack, `pulumi preview`
+shows the normalized profile; read `permissionCatalog` and `operatorProfiles` from the
+preview diff. Do not decode, paste, or log an issued token to verify a claim: the
+property that matters is which population the profile names, and that is visible in the
+preview. Production apply remains gated on a separate explicit human security approval.
+
+**Production enablement of the Platform Admin console stays blocked** until that approval
+records verification against the prod stack. This repository can prove which populations
+exist and who may hold provenance; it cannot prove the console's own gating, which lives
+in `tequity-ui`/`tequity-api` (tequity-ui#25, tequity-ui#214).
+
 ## Cloud storage stacks
 
 Local development uses Docker Compose and does not depend on Pulumi or ESC.
