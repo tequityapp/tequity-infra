@@ -38,14 +38,71 @@ function lockedInternalPackages(): string[] {
   return [...names].sort();
 }
 
+/**
+ * A `pull_request_target` workflow runs the BASE repository's definition, not the
+ * pull request's — so a blanket ban on the trigger was a proxy for the rule this
+ * block is actually named after, and a strictly wider one. The danger is specific
+ * and it is checked directly below: privileged context combined with checking out
+ * pull-request code, granting write, or reaching a runner the PR author can steer.
+ *
+ * The narrow allowance exists because the organization's canonical Renovate
+ * changelog attribution caller needs this trigger and nothing else can express it
+ * (see the contract's own test, which forbids GITHUB_TOKEN and any `steps:` there).
+ * It is granted only to a thin delegation to an immutably pinned
+ * `Verjson/.github` reusable workflow. Anything else — a mutable ref, a lookalike
+ * owner, a checkout, a write grant, or a `steps:` block — forfeits it and fails
+ * closed.
+ */
+const isCanonicalPullRequestTargetDelegation = (content: string): boolean =>
+  /^\s*uses:\s*Verjson\/\.github\/\.github\/workflows\/[^\s@]+@[0-9a-f]{40}\s*$/m.test(content)
+  && !/^\s*(?:-\s*)?uses:\s*actions\/checkout@/m.test(content)
+  && !/^\s*steps:\s*$/m.test(content)
+  && !/^\s*runs-on:/m.test(content)
+  && !/:\s*write\s*$/m.test(content)
+  && !/secrets:\s*inherit/.test(content)
+  && !/GITHUB_TOKEN|github\.token|ORG_ADMIN_TOKEN/.test(content);
+
 describe('repository workflow trust boundaries', () => {
   it('never runs pull-request-controlled workflow definitions on self-hosted runners', () => {
     for (const { name, content } of workflowFiles) {
-      expect(content, name).not.toContain('pull_request_target:');
+      if (/^\s*pull_request_target:\s*$/m.test(content)) {
+        expect(isCanonicalPullRequestTargetDelegation(content), name).toBe(true);
+      }
       if (/^\s*pull_request:\s*$/m.test(content)) {
         expect(content, name).not.toMatch(/^\s*runs-on:\s*.*self-hosted/m);
       }
     }
+  });
+
+  it('refuses every pull_request_target shape outside that narrow delegation', () => {
+    const pinned = 'uses: Verjson/.github/.github/workflows/renovate-changelog.yml@' + 'a'.repeat(40);
+    expect(isCanonicalPullRequestTargetDelegation(`jobs:\n  j:\n    ${pinned}\n`)).toBe(true);
+    // A mutable ref, a lookalike owner, or a third party is not the contract.
+    expect(isCanonicalPullRequestTargetDelegation(
+      'jobs:\n  j:\n    uses: Verjson/.github/.github/workflows/renovate-changelog.yml@main\n',
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    uses: NotVerjson/.github/.github/workflows/renovate-changelog.yml@${'a'.repeat(40)}\n`,
+    )).toBe(false);
+    // The dangerous combinations the trigger is actually feared for.
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n    steps:\n`,
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n      - uses: actions/checkout@${'b'.repeat(40)}\n`,
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n    runs-on: self-hosted\n`,
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n    permissions:\n      contents: write\n`,
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n    secrets: inherit\n`,
+    )).toBe(false);
+    expect(isCanonicalPullRequestTargetDelegation(
+      `jobs:\n  j:\n    ${pinned}\n      token: \${{ secrets.ORG_ADMIN_TOKEN }}\n`,
+    )).toBe(false);
   });
 
   it('pins every external action and reusable workflow to an immutable commit', () => {
